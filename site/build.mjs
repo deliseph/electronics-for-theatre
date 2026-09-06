@@ -611,19 +611,72 @@ for (const c of classData) {
 
   // --- Teach mode ------------------------------------------------------------
   //
-  // One idea per screen. The block plan is the order of work, not a timetable:
-  // a class that runs long on the bench is a class that is going well.
-  const slides = c.doc.blocks.map((b, i) => `<section class="slide" data-i="${i}"
-      data-title="${esc(b.title)}" data-parent="${esc(b.parent)}" data-anchor="${esc(b.id)}"
-      data-page="${b.page || 1}" data-pages="${b.pages || 1}">${b.html}</section>`).join('');
+  // A projector view: one idea per screen, very large type, with two clocks and
+  // a whiteboard. It is the lecturer's own notes made legible from the back of a
+  // room, not an attempt to auto-generate slides that would be worse than the
+  // notes. The course carries no fixed timetable, so the clocks report elapsed
+  // time and leave the judgement to the person in the room.
+
+  // A heading with nothing under it spends a whole projected screen announcing
+  // a title the toolbar already shows. Fold those into the screen that follows.
+  const merged = [];
+  for (const b of c.doc.blocks) {
+    const bare = b.html.replace(/<h[23][\s\S]*?<\/h[23]>/, '');
+    const words = (bare.replace(/<[^>]+>/g, ' ').match(/\S+/g) || []).length;
+    const prev = merged[merged.length - 1];
+    if (prev && prev.level === 2 && prev.thin && b.level === 3) {
+      b.html = prev.html + b.html;
+      merged[merged.length - 1] = b;
+      continue;
+    }
+    merged.push({ ...b, thin: b.level === 2 && words < 25 });
+  }
+
+  const slides = merged.map((b, i) => {
+    const cont = b.pages > 1 && b.page > 1;
+    const lbl = b.pages > 1 ? `${b.title} (${b.page}/${b.pages})` : b.title;
+    // On a continuation screen the heading is repeated small, so the room still
+    // knows which section it is in without spending a title line on it.
+    const inner = cont ? b.html.replace(/<h([23]) ([^>]*)>/, '<h$1 $2 data-cont="1">') : b.html;
+    const hasFig = /<div class="(anim|practice)"/.test(b.html);
+    return `<section class="slide" data-i="${i}" data-title="${esc(lbl)}"
+        data-block="${esc(b.parent)}" data-level="${b.level}"${cont ? ' data-cont="1"' : ''}${hasFig ? ' data-fig="1"' : ''}>
+        <div class="slide-inner">${inner}</div></section>`;
+  }).join('');
 
   write(`/teach/${c.n}`, shell({
     title: `Teach · Class ${c.n}`,
     desc: `Projector view for Class ${c.n}.`,
     bodyClass: 'teach-mode',
     bodyAttrs: ` data-cls="${c.n}"`,
-    body: `<div class="deck" data-class="${c.n}" data-title="${esc(c.title)}">${slides}</div>`,
-    scripts: ['/assets/anim.js', '/assets/teach.js'],
+    body: `
+<div class="teach" data-class="${c.n}">
+  <header class="teach-bar">
+    <a class="teach-exit" href="/class/${c.n}" title="Exit teach mode">✕</a>
+    <h1 class="teach-title">Class ${c.n} · ${esc(c.title)}</h1>
+    <span class="teach-when">${HOURS} h · ${c.benchHours} at the bench</span>
+    <span class="teach-block" id="tblock"></span>
+    <span class="teach-sub" id="tsub"></span>
+    <div class="teach-sp"></div>
+    <button class="teach-btn" id="tstart" title="Runs for the whole class. The block figure beside it restarts at each block.">▶ Start stopwatch</button>
+    <span class="teach-clock" id="tclock">00:00</span>
+    <span class="teach-bclock" id="tbclock" hidden></span>
+    <span class="teach-pos" id="tpos"></span>
+    <button class="teach-btn" id="tfull" title="Full screen">⛶</button>
+  </header>
+  <div class="teach-track" id="ttrack">${slides}</div>
+  <footer class="teach-foot">
+    <button class="teach-nav" id="tprev">← Previous</button>
+    <div class="teach-dots" id="tdots"></div>
+    <span class="teach-next" id="tnextup" hidden></span>
+    <span class="teach-loc" id="tloc" hidden title="The same page on a phone. Press l to show it big for the room."><span class="teach-loc-p" id="tlocp"></span><kbd>l</kbd></span>
+    <button class="teach-btn" id="tboard" title="A surface to draw on, over this screen. What you draw stays until you clear it.">✎ Board <kbd>w</kbd></button>
+    <button class="teach-btn" id="tgrid" title="Overview of every screen (o)">▦ Overview <kbd>o</kbd></button>
+    <button class="teach-btn" id="tanswers" aria-pressed="true" title="Hold each figure&#39;s conclusion until you press n. Your choice is remembered on this laptop."><span>Answers: held</span> <kbd>a</kbd></button>
+    <button class="teach-nav" id="tnext">Next →</button>
+  </footer>
+</div>`,
+    scripts: ['/assets/teach.js', '/assets/anim.js'],
   }));
 }
 
