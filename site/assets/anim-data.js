@@ -4,7 +4,7 @@
 import { register } from './anim-core.js';
 import {
   figure, canvas, slider, toggle, choice, label, labelWrap, box, line, palette,
-  alpha, fitter, compare, chain, role, eng, sig,
+  alpha, fitter, compare, chain, role, eng, sig, textWidth,
   arrow, resistorSym, groundSym, readoutChip, node,
 } from './anim-kit.js';
 
@@ -871,4 +871,220 @@ register('net-diag', (host) => chain(host, {
     },
   ],
   footer: 'The sibling module on computer systems and networking goes considerably deeper on all three.',
+}));
+
+// ---------------------------------------------------------------------------
+// Addresses and masks
+// ---------------------------------------------------------------------------
+
+register('ip-basics', (host) => {
+  let consoleIp = '10.101.3.10', consoleMask = 24;
+  let nodeIp = '10.101.3.42', nodeMask = 24;
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'One question decides whether two devices can talk',
+    sub: 'The mask says which part of the address is the neighbourhood. Both have to match.',
+    note: '',
+  });
+
+  const toInt = (ip) => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0) >>> 0;
+  const netOf = (ip, m) => (toInt(ip) & (m === 0 ? 0 : (0xFFFFFFFF << (32 - m)) >>> 0)) >>> 0;
+  const toIp = (n) => [24, 16, 8, 0].map((s) => (n >>> s) & 255).join('.');
+  const canTalk = () => netOf(consoleIp, consoleMask) === netOf(nodeIp, nodeMask) && consoleMask === nodeMask;
+
+  const upd = () => {
+    setNote(canTalk()
+      ? `Both are on ${toIp(netOf(consoleIp, consoleMask))}/${consoleMask}, so the neighbourhood parts match and they can reach each other directly. <b>That is the whole test, and it takes ten seconds to apply if you read both addresses rather than assuming them.</b>`
+      : `The console is on ${toIp(netOf(consoleIp, consoleMask))}/${consoleMask} and the node is on ${toIp(netOf(nodeIp, nodeMask))}/${nodeMask}. Different neighbourhoods, so nothing passes between them. <b>Both devices report themselves as perfectly healthy, which is exactly why this fault wastes more time than any other on a network rig.</b>`);
+    cv.once();
+  };
+
+  controls.append(choice('Console', [
+    ['10.101.3.10|24', '10.101.3.10 /24'], ['2.0.0.1|8', '2.0.0.1 /8'], ['192.168.1.10|24', '192.168.1.10 /24'],
+  ], { value: '10.101.3.10|24', on: (v) => { const [a, m] = v.split('|'); consoleIp = a; consoleMask = +m; upd(); } }).node);
+  controls.append(choice('Node', [
+    ['10.101.3.42|24', '10.101.3.42 /24'], ['2.0.0.5|8', '2.0.0.5 /8 (Art-Net default)'], ['10.101.9.42|24', '10.101.9.42 /24'],
+  ], { value: '10.101.3.42|24', on: (v) => { const [a, m] = v.split('|'); nodeIp = a; nodeMask = +m; upd(); } }).node);
+
+  challenge('Find the pairing where both devices look healthy and no data passes.', () => !canTalk());
+
+  const cv = canvas(stage, {
+    height: 260,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const ok = canTalk();
+      const boxW = Math.min(180, (w - pad * 2 - 40) / 2);
+      const cy = 62;
+
+      const drawBox = (x, title, ip, mask, netCol) => {
+        box(g, x, cy - 34, boxW, 78, { fill: p.raised, stroke: p.line, r: 7 });
+        label(g, title, x + boxW / 2, cy - 20, { color: p.muted, size: 9.5, align: 'center' });
+        // The address, split into the part the mask covers and the part it does not.
+        const octets = ip.split('.');
+        const covered = Math.floor(mask / 8);
+        let tx = x + 12;
+        octets.forEach((o, k) => {
+          const inNet = k < covered;
+          label(g, o + (k < 3 ? '.' : ''), tx, cy + 2, {
+            color: inNet ? netCol : p.ink2, size: 14, weight: inNet ? 700 : 500, mono: true,
+          });
+          tx += textWidth(g, o + '.', { size: 14, weight: 700, mono: true });
+        });
+        label(g, `/${mask}`, x + boxW - 12, cy + 2, { color: p.muted, size: 12, align: 'right', mono: true });
+        label(g, `neighbourhood ${toIp(netOf(ip, mask))}`, x + boxW / 2, cy + 26, {
+          color: netCol, size: 9.5, align: 'center', max: boxW - 12,
+        });
+        label(g, 'link light on · looks healthy', x + boxW / 2, cy + 54, {
+          color: R.safe, size: 9, align: 'center', max: boxW,
+        });
+      };
+
+      const netA = toIp(netOf(consoleIp, consoleMask));
+      const netB = toIp(netOf(nodeIp, nodeMask));
+      drawBox(pad, 'console', consoleIp, consoleMask, ok ? R.safe : R.energy);
+      drawBox(w - pad - boxW, 'node', nodeIp, nodeMask, ok ? R.safe : R.fault);
+
+      // The path between them.
+      const ax = pad + boxW, bx = w - pad - boxW;
+      line(g, ax, cy, bx, cy, { color: ok ? R.signal : alpha(p.muted, 0.4), lw: 2, dash: ok ? null : [5, 4] });
+      if (ok) {
+        for (let k = 0; k < 4; k++) {
+          const u = ((t * 0.8 + k / 4) % 1);
+          g.fillStyle = R.signal;
+          g.beginPath(); g.arc(ax + u * (bx - ax), cy, 3, 0, Math.PI * 2); g.fill();
+        }
+      } else {
+        label(g, '✕', (ax + bx) / 2, cy, { color: R.fault, size: 18, align: 'center', weight: 700 });
+      }
+
+      const vy = 132;
+      box(g, pad, vy, w - pad * 2, 34, {
+        fill: alpha(ok ? R.safe : R.fault, 0.1), stroke: alpha(ok ? R.safe : R.fault, 0.45), r: 7,
+      });
+      label(g, ok
+        ? `Same neighbourhood: ${netA}. Data passes.`
+        : `${netA} against ${netB}. Nothing passes, and nothing reports an error.`,
+      pad + 12, vy + 17, {
+        color: ok ? R.safe : R.fault, size: 12, weight: 700, max: w - pad * 2 - 24,
+      });
+
+      const ty = vy + 52;
+      label(g, 'Art-Net grew up on 2.x.x.x with a /8 mask and much equipment still defaults there. sACN uses whatever the venue uses.',
+        pad, ty, { color: p.ink2, size: 11, max: w - pad * 2 });
+      label(g, 'A rig with both on it needs a deliberate decision rather than two sets of defaults.',
+        pad, ty + 20, { color: p.muted, size: 10.5, max: w - pad * 2 });
+    },
+  });
+  upd();
+});
+
+register('rdm-discovery', (host) => chain(host, {
+  title: 'The return path DMX never had',
+  sub: 'The controller stops transmitting briefly, asks a question, and listens in the gap.',
+  tag: 'Step', accent: 'signal',
+  stages: [
+    {
+      name: 'Stop and ask',
+      body: 'The controller pauses DMX transmission and sends a discovery request down the same pair, with a start code that says “this is not dimmer data”.',
+      why: 'DMX was designed as a monologue. The only way to add a reply is to leave a gap in it, which is why RDM shares the line’s time budget rather than adding to it.',
+      note: 'Discovery is chatty. <b>Run it during the rig check, not during the performance, or it steals slots from the DMX that is running the show.</b>',
+    },
+    {
+      name: 'Everything answers at once',
+      body: 'Every device hears the request. The controller narrows by asking about ranges of unique IDs, halving the search each time until each device is alone.',
+      why: 'This is a binary search, which is the same half-splitting idea as the fault-finding method, implemented in silicon.',
+    },
+    {
+      name: 'The reply has to get back',
+      body: 'The responding device transmits, briefly, in the opposite direction on the same pair. Every splitter, buffer and isolator in the path has to be willing to turn around.',
+      why: 'A non-RDM splitter passes DMX perfectly and blocks the return silently. The fixtures work, none of them are discoverable, and the symptom points at the fixtures.',
+      note: 'This is the fault-finding misery of RDM. <b>The cause is a box in the middle and the symptom is at the ends, which is precisely the case the boundary question is for.</b>',
+    },
+    {
+      name: 'Now you can ask it things',
+      body: 'Set its address and personality from the desk. Read its lamp hours, temperature and fan status. Make one fixture identify itself so you can find it.',
+      why: 'Setting an address from the desk rather than on a ladder is the feature that pays for the whole standard on a large rig.',
+      note: 'Support is partial across manufacturers, because the standard is large. <b>A fixture that discovers but will not accept an address change is behaving badly rather than being broken, and knowing that saves an hour.</b>',
+    },
+  ],
+  footer: 'RDM turns "everything you know about the rig, you know because you sent it" into a conversation. It is the single largest change to DMX since it was written.',
+}));
+
+// ---------------------------------------------------------------------------
+// Class 10: the boundary, and the drawing
+// ---------------------------------------------------------------------------
+
+register('boundary', (host) => chain(host, {
+  title: 'The five questions that eliminate most of the rig',
+  sub: 'Before touching anything. They cost fifteen seconds and no tools.',
+  tag: 'Question', accent: 'safe',
+  stages: [
+    {
+      name: 'How much is affected?',
+      body: 'One fixture, one run, one universe, or everything? Write the answer down.',
+      why: 'This single question eliminates three quarters of the rig in one pass, and it is the one people skip when they are in a hurry.',
+      note: 'The fault is on the line between what works and what does not. <b>Everything else in this method is about finding that line faster.</b>',
+    },
+    {
+      name: 'Does the boundary follow the cable, or the patch?',
+      body: 'If the affected fixtures are consecutive along a run, it is wiring. If they are consecutive in the patch, it is addressing.',
+      why: 'Those two are different halves of the rig and different toolkits. Answering this before you move decides which one you spend the next ten minutes in.',
+    },
+    {
+      name: 'Does anything downstream work?',
+      body: 'If the fixtures after the suspect point respond, the signal is arriving there. If nothing after it responds, it is not.',
+      why: 'It turns a rig into a line with a break in it, and a line with a break in it can be half-split.',
+    },
+    {
+      name: 'Did it ever work, and what changed?',
+      body: 'Since the last time it was right, what was touched? A cable added, a fixture swapped, a console update, a different patch.',
+      why: 'Everything that has not been touched is unlikely, and "we added twenty metres at the far end" is usually the whole answer.',
+    },
+    {
+      name: 'Does it correlate with another department?',
+      body: 'Does it happen when the dimmers come up, when the smoke machine fires, when the moving lights home?',
+      why: 'Screening, shared supplies and dimmer harmonics all produce faults that are dormant until somebody else does something.',
+      note: '“It only happens during the ballroom scene” is not a complaint, it is a measurement. <b>Nobody asks this question, and it is how fault 6 gets found.</b>',
+    },
+  ],
+  footer: 'Write the boundary down before you move. It stops the thing that actually wastes the evening: forgetting what you already excluded, and testing it again.',
+}));
+
+register('rig-doc', (host) => compare(host, {
+  title: 'What a signal flow drawing has to carry',
+  sub: 'A lighting plan says where fixtures hang. This says how data reaches them, and it is the one that matters at 22:00.',
+  fields: [
+    { label: 'What it records', key: 'what' },
+    { label: 'The fault it finds in ninety seconds', key: 'finds', tone: 'safe' },
+  ],
+  items: [
+    { name: 'Address and universe, per fixture', short: 'Address', tone: 'signal',
+      line: 'Every device, its start address, its universe, and how many channels it occupies.',
+      what: 'Fixture 3 on run 2, universe 1, address 33, 16 channels, so 33 to 48',
+      finds: 'Address collisions, off-by-one patching, and a footprint running past 512' },
+    { name: 'Cable lengths and labels', short: 'Cables', tone: 'signal',
+      line: 'Each cable, with its length and the label physically on it at both ends.',
+      what: 'DMX-07, 20 m, splitter output 2 to fixture 4',
+      finds: 'The run that is now too long, and which cable to pull without tracing it' },
+    { name: 'Where the terminators are', short: 'Terminators', tone: 'energy',
+      line: 'Marked at the end of every run, as part of the run’s definition.',
+      what: 'A symbol at the last device on each branch',
+      finds: 'The terminator removed when somebody extended the run, which is fault 1' },
+    { name: 'Where the isolation barriers are', short: 'Isolation', tone: 'safe',
+      line: 'Which splitters are isolated, and therefore which faults can travel.',
+      what: 'Splitter A: optically isolated, four outputs',
+      finds: 'Why a fault on one branch took out three others' },
+    { name: 'Which device is last on each run', short: 'Ends', tone: 'signal',
+      line: 'Because that is where the terminator goes and where you scope.',
+      what: 'Run 2 ends at fixture 6',
+      finds: 'Everything about reflections, and where to put the probe' },
+    { name: 'It matches reality', short: 'Correct', tone: 'fault',
+      line: 'The drawing you made before the build is a plan. The one you corrected after walking the rig is a drawing.',
+      what: 'Corrections made in pen, on the day, by whoever walked it',
+      finds: 'Nothing, if it is wrong. A drawing that disagrees with the rig is worse than none',
+      watch: 'A team with a correct drawing finds a wrong-universe fault in ninety seconds. A team without one starts unplugging things, and a team with an incorrect one confidently tests the wrong half of the rig.' },
+  ],
+  footer: 'The test of the drawing and the labelling together: could somebody who has never seen this rig find the third fixture on run two, in the dark, in ninety seconds?',
 }));

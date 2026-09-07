@@ -29,6 +29,27 @@ Board, laptop, driver board, meter, and the state machine you drew in Class 12.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the limit switch you photographed |
+| 45 | The idea | Asking the right question. Switches and contacts, analogue sensors, position and motion |
+| 15 | Break |  |
+| 40 | The idea | Actuators and the responsibility that comes with them, then the chain end to end |
+| 30 | Bench A | Build three dividers, choosing each fixed resistor by the geometric mean rule |
+| 25 | Bench B | Normally closed proved, by cutting the cable with the system running |
+| 25 | Bench C | The encoder that does not know where it is, then a homing routine |
+| 20 | Bench D | Peak and hold, with two temperature curves on one axis |
+| 20 | Bench E | Measure your own chain, sensor to actuator, on a scope |
+| 10 | Close | Which link in your chain was largest, and whether it mattered |
+
+---
+
 ## Asking the right question
 
 The hardest part of sensing is not the electronics. It is turning a production requirement into a
@@ -181,6 +202,62 @@ it is invisible.
 **The mechanical time dominates everything.** Fifty milliseconds of electronics on a movement that
 takes two seconds is irrelevant. Fifty milliseconds on a snap that should look instantaneous is
 visible. Know which one you are building before you spend a day shaving milliseconds.
+
+---
+
+## Driving a motor in both directions
+
+A MOSFET switches a motor on and off in one direction. Reversing it needs four switches arranged in
+an H, which is why the part is called an H-bridge and why you buy it as a module rather than
+building it.
+
+<!--anim:h-bridge-->
+
+Close the top-left and bottom-right and current flows one way; close the other diagonal and it flows
+the other. That is the whole idea, and everything else is about the two ways it goes wrong.
+
+**Shoot-through** is closing both switches on the same side at once, which is a short circuit
+across the supply through two transistors. A real driver chip includes a dead time — a few hundred
+nanoseconds where both are off during the changeover — and that is a large part of what you are
+paying for. It is also why you do not build one from four MOSFETs on breadboard.
+
+**Braking against coasting.** Open all four switches and the motor coasts, still turning, driven by
+its own momentum. Close both bottom switches and the motor is shorted to itself: its own generated
+voltage drives a current that opposes the rotation, and it stops sharply. A scenic piece coasting to
+a stop and one braking to a stop are visibly different, and which you want is a design decision, not
+a default.
+
+**And the motor is a generator.** Decelerating scenery pushes current back into the driver. On a
+small load the driver absorbs it; on a large one it raises the supply rail until something fails.
+That is why serious motion control has a braking resistor, and it is the reason a scenic automation
+supplier's schematic has a component on it you did not expect.
+
+---
+
+## Measuring force and position properly
+
+<!--anim:loadcell-->
+
+Two sensors worth knowing because they answer questions a switch cannot.
+
+**A load cell** is a metal element with strain gauges bonded to it, wired as a bridge. Deforming the
+metal changes the resistances by a fraction of a per cent, and the bridge turns that into a
+differential voltage of a few millivolts. It needs a dedicated amplifier — an HX711 or similar —
+because a few millivolts on top of a couple of volts of common mode is not something an ordinary
+ADC can read.
+
+What it buys you in a theatre: knowing what a flown piece actually weighs, whether a counterweight
+set is balanced, and whether the thing that should be resting on the deck is resting on the deck.
+That last one is a genuinely good interlock, because it measures the condition itself rather than a
+proxy for it.
+
+**An inductive proximity sensor** detects metal without contact and without a magnet, at a few
+millimetres, and is unbothered by dust, paint and stage haze. Where a reed switch can be defeated
+with a magnet and an optical sensor can be defeated with haze, a proximity sensor mostly cannot,
+which is why they appear on machinery rather than on props.
+
+Both give you the same thing: **a measurement of the physical condition rather than a proxy for
+it**, which is the difference between "the cue was sent" and "the thing actually moved".
 
 ---
 

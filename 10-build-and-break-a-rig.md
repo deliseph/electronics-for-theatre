@@ -28,6 +28,24 @@ forty minutes in the middle.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | What a library of symptoms is for, and how the next three hours run |
+| 60 | Bench A | Build the rig, label everything, and produce the signal flow drawing |
+| 25 | Bench B | Prove it, and photograph the clean trace at the end of each run |
+| 15 | Break |  |
+| 100 | Bench C | Fourteen faults, rotating, about seven minutes each, all logged |
+| 15 | Bench D | Write the report: the three that took longest, and what would have found each faster |
+| 15 | Close | The three faults that teach the most, and why |
+
+---
+
 ## Why breaking things is the lesson
 
 You will spend your career diagnosing systems you did not build, under time pressure, with somebody
@@ -165,6 +183,58 @@ counters. Three checks, in order, before anything else:
 Those three questions split the network half of the rig into thirds in under a minute, and the
 sibling module on [computer systems and networking](https://github.com/deliseph/theatre-computer-systems)
 goes considerably deeper on all three.
+
+---
+
+## Establishing the boundary
+
+Every method in this course begins with the same move, and it is the one people skip when they are
+in a hurry. Before touching anything: **what works, what does not, and where is the line between
+them?** The fault is on that line.
+
+<!--anim:boundary-->
+
+On a rig, the boundary questions are concrete:
+
+| Question | What the answer eliminates |
+| --- | --- |
+| Is it one fixture, one run, one universe, or everything? | Three quarters of the rig, in one question |
+| Does the boundary follow the cable order, or the patch order? | A wiring fault against an addressing fault |
+| Does anything downstream of it work? | Whether the signal is arriving at all |
+| Did it ever work, and what changed since? | Everything that has not been touched |
+| Does it correlate with anything in another department? | Screening, shared supplies, dimmer harmonics |
+
+The last one is the one nobody asks, and it is how fault 6 gets found. "It only happens during the
+ballroom scene" is not a complaint, it is a measurement.
+
+**Write the boundary down before you move.** It takes fifteen seconds, and it stops the thing that
+actually wastes the evening: forgetting what you have already excluded, and testing it again.
+
+---
+
+## The drawing, and what makes one good
+
+<!--anim:rig-doc-->
+
+A lighting plan says where fixtures hang. A **signal flow drawing** says how data reaches them, and
+they are different documents answering different questions. The second is the one that matters at
+22:00.
+
+A signal flow drawing that works carries: every device with its address, universe and channel
+footprint; every cable with its length and its label; where the terminators are; where the isolation
+barriers are; and which device is at the end of each run.
+
+Three properties separate a drawing that gets used from one that gets ignored:
+
+**It matches reality.** The drawing you made before the build is a plan. The one you corrected after
+walking the rig is a drawing. Only the second is a deliverable.
+
+**Somebody else can read it.** Get it signed off by another team before you power up. A drawing only
+its author understands is a private note.
+
+**It answers the question you will actually have.** Not "what does this rig look like" but "which
+fixture is third on run two, and what is its address". If the drawing cannot answer that in ten
+seconds, it is decorative.
 
 ---
 

@@ -897,3 +897,339 @@ register('dmx-receive', (host) => {
   });
   upd();
 });
+
+// ---------------------------------------------------------------------------
+// Interrupts
+// ---------------------------------------------------------------------------
+
+register('interrupts', (host) => compare(host, {
+  title: 'Poll it, or interrupt for it',
+  sub: 'Polling is right for almost everything. Knowing which few things it is wrong for is the point.',
+  fields: [
+    { label: 'How it works', key: 'how' },
+    { label: 'Use it when', key: 'when', tone: 'safe' },
+    { label: 'What goes wrong', key: 'wrong', tone: 'fault' },
+  ],
+  items: [
+    {
+      name: 'Polling', short: 'Poll', tone: 'safe',
+      line: 'The loop comes round and asks. What you have been doing all class.',
+      how: 'Read the pin every pass. At a loop time under a millisecond you will never miss a human',
+      when: 'Buttons, sensors, anything a person or a slow machine does',
+      wrong: 'Nothing, provided the loop stays fast. A blocking delay is what breaks it, not the polling',
+      note: 'Easy to reason about, easy to debug, and impossible to get subtly wrong. <b>Reach for this first, every time, and only move to an interrupt when you can say exactly why polling fails.</b>',
+    },
+    {
+      name: 'Interrupt', short: 'Interrupt', tone: 'energy',
+      line: 'A pin change stops the processor mid-instruction, runs a short function, and returns.',
+      how: 'Hardware vectors to your handler. The main loop does not have to be looking',
+      when: 'Short, rare, and cannot be missed: an encoder pulse at speed, a zero-crossing, a stop input',
+      wrong: 'Everything below, and all of it is invisible until it is not',
+      watch: 'An interrupt handler blocks everything, including the timer that drives millis(). Set a flag, store a value, return. No delays, no printing, no long arithmetic.',
+    },
+    {
+      name: 'The volatile trap', short: 'volatile', tone: 'fault',
+      line: 'A variable shared between a handler and the main loop, without the keyword.',
+      how: 'The compiler assumes nothing changes it behind its back and caches it in a register',
+      when: 'Never. Mark every shared variable volatile',
+      wrong: 'The main loop reads a stale value forever. The bug is invisible, intermittent, and depends on the optimisation level',
+      note: 'It compiles, it runs, and it works at -O0 and fails at -O2. <b>This is the single hardest bug in embedded work to find by reading, and the fix is one keyword.</b>',
+    },
+    {
+      name: 'The torn read', short: 'Torn read', tone: 'fault',
+      line: 'A multi-byte variable shared with a handler, read while it is being written.',
+      how: 'The loop reads two bytes, is interrupted between them, and reads the rest from a different moment',
+      when: 'Any variable wider than the processor’s word that a handler writes',
+      wrong: 'A number that was never true. On an 8-bit chip that is anything above 255',
+      watch: 'Disable interrupts briefly around the read, copy the value, re-enable. Three lines, and without them a 32-bit counter occasionally reports a value from two different instants.',
+    },
+  ],
+  footer: 'Do not use an interrupt for a button. A poll every millisecond will never miss a finger, and it is far easier to reason about at two in the morning.',
+}));
+
+// ---------------------------------------------------------------------------
+// Powering a microcontroller
+// ---------------------------------------------------------------------------
+
+register('mcu-power', (host) => {
+  let decoupled = true;
+  let bulk = true;
+  let sharedReg = false;
+  let servoPulling = false;
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Most prop faults that look like software are power',
+    sub: 'Start a servo and watch the rail the chip is running from.',
+    note: '',
+  });
+
+  // How far the local rail sags, in volts, when the servo pulls.
+  const sag = () => {
+    if (!servoPulling) return decoupled ? 0.01 : 0.05;
+    let s = sharedReg ? 1.1 : 0.06;
+    if (!bulk) s += 0.5;
+    if (!decoupled) s += 0.35;
+    return s;
+  };
+
+  const upd = () => {
+    const v = 5 - sag();
+    setNote(v < 4.3
+      ? `The rail has fallen to ${sig(v)} V, below the chip’s brown-out threshold. It resets, mid-cue, every time the servo starts. <b>This presents as a software fault and it is a power fault, which is why it costs people days.</b>`
+      : sag() > 0.15
+        ? `The rail dips to ${sig(v)} V for a few milliseconds. The chip survives, and peripherals reading an analogue value during that window are reading against a reference that moved. <b>Every ADC reading taken while the servo starts is wrong, and nothing reports it.</b>`
+        : 'The rail holds. Decoupling supplies the nanosecond demands, bulk capacitance covers the millisecond ones, and the actuator has its own supply. <b>Four things, none of them expensive, and together they are the difference between a board that works in a rack and one that only works on a bench.</b>');
+    cv.once();
+  };
+
+  controls.append(toggle('100 nF at the chip', { value: true, on: (v) => { decoupled = v; upd(); } }).node);
+  controls.append(toggle('Bulk capacitor at the entry', { value: true, on: (v) => { bulk = v; upd(); } }).node);
+  controls.append(toggle('Servo on the board’s regulator', { value: false, on: (v) => { sharedReg = v; upd(); } }).node);
+  controls.append(toggle('Servo starts', { value: false, on: (v) => { servoPulling = v; upd(); } }).node);
+
+  challenge('Make the chip reset without touching a line of code.',
+    () => 5 - sag() < 4.3);
+
+  const cv = canvas(stage, {
+    height: 270,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const v = 5 - sag();
+      const reset = v < 4.3;
+
+      // The supply, the regulator, the chip and the servo.
+      const y = 58;
+      const regX = pad + 60, chipX = pad + 150, servoX = w - pad - 74;
+      box(g, pad, y - 18, 44, 36, { fill: p.raised, stroke: p.line, r: 5 });
+      label(g, '12 V', pad + 22, y, { color: R.energy, size: 10, align: 'center' });
+      box(g, regX, y - 18, 52, 36, { fill: p.raised, stroke: p.line, r: 5 });
+      label(g, 'reg', regX + 26, y, { color: p.ink2, size: 10, align: 'center' });
+      line(g, pad + 44, y, regX, y, { color: R.energy, lw: 2 });
+      box(g, chipX, y - 22, 60, 44, {
+        fill: reset ? alpha(R.fault, 0.2) : p.raised, stroke: reset ? R.fault : p.line, r: 5, lw: reset ? 2 : 1,
+      });
+      label(g, reset ? 'RESET' : 'MCU', chipX + 30, y, {
+        color: reset ? R.fault : p.ink2, size: 11, align: 'center', weight: 700,
+      });
+      line(g, regX + 52, y, chipX, y, { color: R.energy, lw: 2 });
+
+      // The decoupling capacitor, at the chip or absent.
+      if (decoupled) {
+        line(g, chipX + 30, y + 22, chipX + 30, y + 34, { color: R.signal, lw: 1.5 });
+        line(g, chipX + 20, y + 34, chipX + 40, y + 34, { color: R.signal, lw: 2.5 });
+        line(g, chipX + 20, y + 40, chipX + 40, y + 40, { color: R.signal, lw: 2.5 });
+        groundSym(g, chipX + 30, y + 44, p.muted, 1.5);
+        label(g, '100 nF', chipX + 46, y + 37, { color: R.signal, size: 9 });
+      } else {
+        label(g, 'no decoupling', chipX + 30, y + 40, {
+          color: R.fault, size: 9.5, align: 'center', weight: 700, max: 100,
+        });
+      }
+      // Bulk, at the entry.
+      if (bulk) {
+        line(g, regX + 26, y + 18, regX + 26, y + 32, { color: R.signal, lw: 1.5 });
+        line(g, regX + 16, y + 32, regX + 36, y + 32, { color: R.signal, lw: 2.5 });
+        line(g, regX + 16, y + 38, regX + 36, y + 38, { color: R.signal, lw: 2.5 });
+        groundSym(g, regX + 26, y + 42, p.muted, 1.5);
+        label(g, '100 µF', regX - 4, y + 36, { color: R.signal, size: 9, align: 'right' });
+      }
+
+      // The servo, on its own supply or stealing from the regulator.
+      box(g, servoX, y - 18, 60, 36, {
+        fill: servoPulling ? alpha(R.energy, 0.3) : p.raised, stroke: p.line, r: 5,
+      });
+      label(g, 'servo', servoX + 30, y, { color: p.ink2, size: 10, align: 'center' });
+      if (sharedReg) {
+        line(g, chipX + 60, y, servoX, y, { color: R.fault, lw: 2.5 });
+        label(g, 'sharing the regulator', (chipX + 60 + servoX) / 2, y - 14, {
+          color: R.fault, size: 9.5, align: 'center', max: servoX - chipX - 60,
+        });
+      } else {
+        line(g, servoX + 30, y - 18, servoX + 30, y - 36, { color: R.safe, lw: 2 });
+        line(g, pad + 22, y - 18, pad + 22, y - 36, { color: R.safe, lw: 2 });
+        line(g, pad + 22, y - 36, servoX + 30, y - 36, { color: R.safe, lw: 2 });
+        label(g, 'its own supply, grounds joined once', (pad + servoX) / 2, y - 44, {
+          color: R.safe, size: 9.5, align: 'center', max: servoX - pad,
+        });
+      }
+      if (servoPulling) {
+        for (let k = 0; k < 4; k++) {
+          const u = ((t * 1.6 + k / 4) % 1);
+          g.fillStyle = R.energy;
+          g.beginPath();
+          g.arc(servoX - u * (sharedReg ? servoX - chipX - 60 : 40) + (sharedReg ? 0 : 0), y, 3, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+
+      // The rail, on a scope.
+      const gL = pad, gT = 140, gW = w - pad * 2, gH = 74;
+      box(g, gL, gT, gW, gH, { fill: alpha(p.ground, 0.5), stroke: p.line, r: 6 });
+      const Y = (volts) => gT + gH - 10 - ((volts - 3.5) / 2) * (gH - 20);
+      line(g, gL, Y(4.3), gL + gW, Y(4.3), { color: alpha(R.fault, 0.7), lw: 1, dash: [4, 3] });
+      label(g, 'brown-out, 4.3 V', gL + 4, Y(4.3) - 8, { color: R.fault, size: 9 });
+      line(g, gL, Y(5), gL + gW, Y(5), { color: alpha(p.muted, 0.5), lw: 1, dash: [3, 3] });
+      label(g, '5.0 V', gL + 4, Y(5) - 8, { color: p.muted, size: 9 });
+
+      g.strokeStyle = reset ? R.fault : R.safe;
+      g.lineWidth = 2.2;
+      g.beginPath();
+      for (let k = 0; k <= 220; k++) {
+        const u = k / 220;
+        // A dip whenever the servo pulls, with ripple scaled by what is missing.
+        const pulse = servoPulling ? Math.max(0, Math.sin(u * 6 * Math.PI - t * 2)) ** 6 : 0;
+        const ripple = decoupled ? 0.004 : 0.03;
+        const vv = 5 - sag() * pulse - Math.sin(u * 90 - t * 20) * ripple;
+        const x = gL + u * gW;
+        k ? g.lineTo(x, Y(vv)) : g.moveTo(x, Y(vv));
+      }
+      g.stroke();
+      label(g, `the rail at the chip: dips to ${sig(v)} V`, gL + 6, gT + 12, {
+        color: reset ? R.fault : R.safe, size: 10.5, weight: 600, max: gW - 12,
+      });
+
+      label(g, 'Decouple at the chip · bulk at the entry · the actuator gets its own supply · join the grounds once',
+        pad, gT + gH + 18, { color: p.muted, size: 10.5, max: gW });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// The three buses
+// ---------------------------------------------------------------------------
+
+register('i2c-spi', (host) => compare(host, {
+  title: 'Three buses, and what each costs in wires',
+  sub: 'Usually decided by what the sensor you want happens to speak, but knowing why matters when you have a choice.',
+  fields: [
+    { label: 'Wires', key: 'wires' },
+    { label: 'Speed', key: 'speed' },
+    { label: 'How many devices', key: 'many' },
+    { label: 'Where you meet it', key: 'where' },
+  ],
+  items: [
+    {
+      name: 'UART', short: 'UART', tone: 'signal',
+      line: 'Two wires and a ground, point to point, with both ends agreeing a rate in advance.',
+      wires: '2 plus ground: transmit and receive', speed: 'Low to moderate, 9600 to a few Mbit/s',
+      many: 'One. It is a conversation between two devices',
+      where: 'DMX through an RS-485 receiver, GPS, radio modules, and your serial debugging',
+      note: 'No clock line, which is why both ends must agree the rate beforehand. <b>That is the whole of Class 9’s serial frame, arriving as something you now have to configure.</b>',
+    },
+    {
+      name: 'I²C', short: 'I²C', tone: 'energy',
+      line: 'Two wires shared by everything, each device answering to its own address.',
+      wires: '2 shared: clock and data', speed: '100 or 400 kHz, sometimes faster',
+      many: 'Many, each with an address',
+      where: 'Sensors, small displays, real-time clocks, expanders',
+      watch: 'It needs pull-up resistors on both lines, usually 4.7 kΩ, and exactly ONE set for the whole bus rather than one set per device. Fit four breakout boards that each have their own and the bus stops working.',
+    },
+    {
+      name: 'I²C address clash', short: 'Clash', tone: 'fault',
+      line: 'Two identical sensors on one bus.',
+      wires: 'The same two', speed: 'Irrelevant, nothing works',
+      many: 'One of each address, and that is the constraint',
+      where: 'The moment you buy a second of anything',
+      note: 'Two devices with the same fixed address cannot share a bus. <b>This is why breakout boards have an address-select jumper, and why everybody discovers that jumper only after buying the second sensor.</b>',
+    },
+    {
+      name: 'SPI', short: 'SPI', tone: 'safe',
+      line: 'Four wires shared, plus one select line per device.',
+      wires: '4 shared, plus one chip-select each', speed: 'Fast: megahertz, tens of megahertz',
+      many: 'Many, limited by how many pins you can spare for selects',
+      where: 'SD cards, displays, addressable LED drivers, fast ADCs',
+      note: 'No addressing and no acknowledgement: you pull a select line low and shift bits. <b>Fast and simple, and it costs a pin per device, which on a small chip is the real limit.</b>',
+    },
+  ],
+  footer: 'The buses are not interchangeable and the choice is usually made for you by the part you want. What you control is the wiring, and the pull-ups are where it goes wrong.',
+}));
+
+// ---------------------------------------------------------------------------
+// Class 12: debugging and non-volatile storage
+// ---------------------------------------------------------------------------
+
+register('serial-debug', (host) => compare(host, {
+  title: 'Debugging with a serial port and an LED',
+  sub: 'No breakpoints and no step button. Used properly these are enough.',
+  fields: [
+    { label: 'Do this', key: 'do', tone: 'safe' },
+    { label: 'Rather than', key: 'rather', tone: 'fault' },
+    { label: 'Because', key: 'because' },
+  ],
+  items: [
+    {
+      name: 'Print state changes', short: 'States', tone: 'safe',
+      line: 'Twenty lines from a whole show is readable. Twenty thousand is not.',
+      do: 'Print when the state machine moves: `IDLE -> FLARE at 41230 ms`',
+      rather: 'Printing a sensor value on every loop pass',
+      because: 'A loop printing thousands of times a second tells you nothing and slows the loop enough to change the behaviour you were investigating',
+      note: 'The log you can actually read is the one that only speaks when something happened. <b>Everything else is noise you will scroll past on the night it matters.</b>',
+    },
+    {
+      name: 'Timestamp everything', short: 'Times', tone: 'safe',
+      line: 'millis() at the front of every line, without exception.',
+      do: 'Prefix every line with the time',
+      rather: 'A bare message with no time',
+      because: 'Half of all prop faults are ordering and timing questions, and a log with no times cannot answer either',
+    },
+    {
+      name: 'Know what printing costs', short: 'Cost', tone: 'energy',
+      line: 'At 9600 baud a forty-character line takes about 42 milliseconds.',
+      do: 'Use 115200, print sparingly, and count the cost into your loop time',
+      rather: 'Adding prints until the fault goes away',
+      because: 'If the print is inside your loop, your loop now takes 42 ms',
+      watch: 'A fault that disappears when you add printing is usually a timing fault you have just changed. That is information, not a fix, and removing the print brings it straight back.',
+    },
+    {
+      name: 'The indicator LED', short: 'LED', tone: 'signal',
+      line: 'The field version of all of the above.',
+      do: 'A pattern per state: one blink idle, two running, rapid for a fault',
+      rather: 'Assuming somebody will connect a laptop',
+      because: 'On a production nobody is connecting a laptop, and the serial port is buried in a set',
+      note: 'Diagnosable from six metres with the documentation sheet. <b>It works when the USB socket is behind a flat, which is where it always is.</b>',
+    },
+    {
+      name: 'Predict before you instrument', short: 'Predict', tone: 'safe',
+      line: 'The Class 2 discipline, in software.',
+      do: 'Ask what you expect to see if your theory is right, and what you would see if it is wrong',
+      rather: 'Adding output everywhere and reading it afterwards',
+      because: 'If those two answers are the same, the measurement cannot change your mind and is not worth taking',
+    },
+  ],
+  footer: 'A print statement is a measurement, and every rule from Class 2 applies to it: predict first, record what you saw, and change one thing at a time.',
+}));
+
+register('nonvolatile', (host) => chain(host, {
+  title: 'Remembering things across a power cut',
+  sub: 'RAM is gone the moment power is. Anything that must survive has to be written deliberately.',
+  tag: 'Rule', accent: 'energy',
+  stages: [
+    {
+      name: 'Decide what is worth keeping',
+      body: 'Configuration is worth keeping: a calibration, a homing offset, a fixture address, a cycle count. State is not.',
+      why: 'A prop that remembers it was mid-flare and resumes has used non-volatile storage to defeat the power-up rule from earlier in this class.',
+      note: 'Ask what a stranger would want the device to do on power-up. <b>The answer is almost never "carry on from where it was".</b>',
+    },
+    {
+      name: 'Do not write on every loop',
+      body: 'EEPROM endures roughly a hundred thousand writes per cell. A loop running a thousand times a second reaches that in under two minutes.',
+      why: 'The cell does not announce that it has worn out. It simply starts returning what it feels like, and the prop starts homing to a garbage offset.',
+      note: 'Write when something has actually changed, and never in a code path that can repeat. <b>This one rule has ended installations.</b>',
+    },
+    {
+      name: 'Assume the first read is garbage',
+      body: 'A new chip, or one whose data was written by an earlier version of your firmware, holds whatever it holds.',
+      why: 'A prop that trusts an uninitialised value moves somewhere nobody expected, at full speed, on the first power-up in the venue.',
+    },
+    {
+      name: 'Store a version and a checksum',
+      body: 'A version byte and a simple checksum alongside the value. If either is wrong, fall back to a sane default rather than trusting it.',
+      why: 'It costs three bytes and it turns "the prop did something inexplicable" into "the prop used its defaults and told you so on the indicator".',
+      note: 'The version byte is what lets a firmware update change the stored format safely. <b>Without it, upgrading the firmware silently reinterprets whatever was there.</b>',
+    },
+  ],
+  footer: 'Wear, initialisation and format changes. Three failure modes, all of them slow, all of them showing up weeks after the thing was installed.',
+}));

@@ -30,6 +30,26 @@ today is reading markings that are 1 mm tall.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and how to read any component in four questions |
+| 55 | The idea | Resistors, capacitors, diodes and LEDs, inductors and the kick. What each one refuses to do |
+| 15 | Break |  |
+| 30 | The idea | Semiconductors in one page, and why the industry chose the connectors it did |
+| 40 | Bench A | Identify fifty parts: name, value, measure, failure mode |
+| 30 | Bench B | The LED that dies, with eye protection and one sacrificial LED |
+| 30 | Bench C | Capacitor time constants, timed by hand, then a discharge measured |
+| 20 | Bench D | Connector inspection: find the faults by eye and by meter |
+| 10 | Close | The two rules of connectors, and what to bring to Class 4 |
+
+---
+
 ## How to read any component
 
 There are thousands of parts and about eight behaviours. You are not learning a catalogue, you are
@@ -224,6 +244,68 @@ causes will be intermittent and hard to find.
 **Two: the connector is not the weak point, the strain relief is.** A cable almost never fails in
 the middle. It fails where it enters the connector, because that is where the flexing is
 concentrated. Class 4 is about that sentence, at a bench, with an iron.
+
+---
+
+## Transformers
+
+Two coils sharing a magnetic core. Alternating current in one induces a voltage in the other, in
+the ratio of their turns, and nothing conducts between them.
+
+<!--anim:transformer-->
+
+```
+V_secondary ÷ V_primary = N_secondary ÷ N_primary
+```
+
+A 230 V to 12 V transformer has about nineteen times as many turns on the primary. Power is
+conserved less the losses, so the current ratio is inverted: twelve volts at five amps out is about
+230 volts at 0.28 amps in.
+
+Three reasons they matter to you, and only one of them is about changing voltage:
+
+**Isolation.** There is no conductive path between primary and secondary. This is the strongest
+form of isolation available and it is why an isolating transformer appears on the safety card.
+
+**They only work on AC.** A transformer fed DC is a short circuit with a time constant, and it will
+draw current until something gives. This is not a subtlety, it is the second most common way people
+destroy transformers.
+
+**Inrush.** Energising a transformer at the wrong point in the mains cycle saturates the core and
+draws a very large momentary current, which is why a rack of transformer-based equipment trips a
+breaker at switch-on and runs happily afterwards. That is Class 5.
+
+Toroidal transformers are quieter and more efficient and have worse inrush. Switch-mode supplies
+have replaced them nearly everywhere, which is why almost everything in a modern rig has the
+switch-mode signature you will find on a scope in Class 8.
+
+---
+
+## Fuses, breakers and the things that pretend to be them
+
+<!--anim:fuse-types-->
+
+A protective device is characterised by two numbers and a curve: the current it will carry
+indefinitely, the current at which it opens quickly, and how long it takes at everything in
+between.
+
+| Device | Opens | Resets | Where |
+| --- | --- | --- | --- |
+| Fast-blow fuse (F) | Quickly, at low overload | No | Electronics, meter current ranges |
+| Slow-blow fuse (T) | Tolerates inrush, then opens | No | Anything with a transformer or motor |
+| Type B breaker | 3 to 5 × rating, magnetically | Yes | General socket and lighting circuits |
+| Type C breaker | 5 to 10 × rating | Yes | Circuits with real inrush: motors, LED racks |
+| PTC "resettable fuse" | Heats and becomes high resistance | Yes, on cooling | Board-level protection |
+| Electronic current limit | Instantly, in the supply | Yes | Bench supplies, good LED drivers |
+
+**The trap is the slow-blow.** A device with an inrush needs a fuse that tolerates it, and fitting a
+fast-blow "because it is the same rating" gives you equipment that blows a fuse every time it is
+switched on. Fitting a fast-blow where a slow-blow belongs is the more common direction; fitting a
+larger fuse to stop the nuisance is the dangerous one.
+
+**And the PTC is not a fuse.** It goes high resistance while the fault persists and recovers when
+it cools, which means a fault behind a PTC sits there cycling rather than announcing itself. It
+protects the board and it hides the problem.
 
 ---
 

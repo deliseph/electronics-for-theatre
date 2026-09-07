@@ -27,6 +27,26 @@ Board, laptop, your Class 6 driver board, meter, breadboard, and a USB cable tha
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the prop failure you wrote up |
+| 15 | The idea | What makes prop firmware different: the eightieth performance, not the first |
+| 25 | Bench A | Draw the state machine and the failure table, signed off by another pair |
+| 45 | Bench B | Build the skeleton: states, timing, debounced input, status indicator |
+| 15 | Break |  |
+| 50 | Bench C | Add the effect: PWM through the Class 6 board, with a dimming curve |
+| 40 | Bench D | Break it deliberately: every row of your failure table |
+| 30 | Bench E | Documentation, then operate another pair’s prop from their sheet alone |
+| 10 | Close | What you had to guess, and what that says about the sheet |
+
+---
+
 ## What makes prop firmware different
 
 Bench code has one job: demonstrate that the idea works. Show firmware has four:
@@ -200,6 +220,60 @@ will still be true in three years.
 **The documentation sheet.** The same discipline as the Class 6 board: what it is, its ratings, its
 pinout, its behaviour on power-up and on loss of control, its reset procedure, its indicator codes,
 and who to call. One side of A4, laminated, in the flight case.
+
+---
+
+## Debugging without a debugger
+
+You have no breakpoints and no step button. What you have is a serial port and an LED, and used
+properly they are enough.
+
+<!--anim:serial-debug-->
+
+**Print state changes, not values.** A loop printing a sensor reading thousands of times a second
+tells you nothing and slows the loop enough to change the behaviour you were investigating. Print
+when the state machine moves: `IDLE -> FLARE at 41230 ms`. Twenty lines from a whole show is
+readable; twenty thousand is not.
+
+**Print the timestamp with everything.** `millis()` at the front of every line. Half of all prop
+faults are ordering and timing questions, and a log with no times cannot answer either.
+
+**Watch out for what printing costs.** At 9600 baud a forty-character line takes about 42
+milliseconds, and if that is inside your loop then your loop now takes 42 milliseconds. Use 115200,
+print sparingly, and remember that a fault which disappears when you add printing is usually a
+timing fault you have just changed.
+
+**The indicator LED is the field version.** On a production nobody is connecting a laptop. A
+pattern per state — one blink idle, two running, rapid for a fault — is diagnosable from six metres
+with the documentation sheet, and it works when the serial port is buried in a set.
+
+**The two questions to ask before adding any instrumentation:** what would I expect to see if my
+theory is right, and what would I see if it is wrong? If those two are the same, the measurement is
+not worth taking. That is the Class 2 prediction discipline, in software.
+
+---
+
+## Remembering things across a power cut
+
+<!--anim:nonvolatile-->
+
+RAM is gone the moment power is. If a prop must remember something — a calibration, a homing
+offset, a fixture address, a cycle count — it has to be written to flash or EEPROM deliberately.
+
+Two rules, and the first one has ended a lot of installations:
+
+**Do not write on every loop.** EEPROM endures roughly a hundred thousand writes per cell. A loop
+running a thousand times a second reaches that in under two minutes. Write when something has
+actually changed, and never in a code path that can repeat.
+
+**Assume the first read is garbage.** A brand new chip, or one whose stored data was written by an
+earlier version of your firmware, holds whatever it holds. Store a version byte and a simple
+checksum alongside the value, and if either is wrong, fall back to a sane default rather than
+trusting it. A prop that homes to a garbage offset moves somewhere nobody expected.
+
+**And decide what is worth remembering.** A prop that remembers it was mid-flare, and resumes,
+has used non-volatile storage to defeat the power-up rule from earlier in this class. Configuration
+is worth keeping. State is not.
 
 ---
 

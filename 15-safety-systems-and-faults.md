@@ -27,6 +27,26 @@ Meter, notebook. This class has a demonstration on real mains, which you will wa
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and what each emergency stop you photographed actually stops |
+| 45 | The idea | What electricity does to a person, and which device is protecting whom |
+| 15 | Break |  |
+| 40 | The idea | Emergency stop done properly, interlocks, isolation and lock-off, then the method |
+| 25 | Bench A | Watch: proving dead on mains, then write the procedure from memory |
+| 20 | Bench B | Dissect an RCD: a 30 mA earth fault, then an overload it ignores |
+| 40 | Bench C | Build a dual channel E-stop, then weld a channel closed and watch |
+| 35 | Bench D | Fault-finding under time pressure: three systems, ten minutes each |
+| 10 | Close | The one thing you now know you do badly under pressure |
+
+---
+
 ## What electricity does to a person
 
 <!--anim:shock-path-->
@@ -228,6 +248,71 @@ Three conditions, and recognising them is a professional skill rather than an ad
   time pressure, and it is never bypassed to get through a performance.
 - Anything where you have been going more than about thirty minutes with no boundary established.
   At that point another pair of eyes is faster than another twenty minutes of yours.
+
+---
+
+## Risk assessment, which is a document and a habit
+
+Every rule on the safety card came from somebody doing this badly once. The formal version is a
+document; the useful version is a habit you run in your head before you touch anything.
+
+<!--anim:risk-matrix-->
+
+Five steps, and they are the same five whether the output is a form or a decision made in ten
+seconds:
+
+1. **Identify the hazard.** The thing with the potential to harm: stored energy, a moving mass, a
+   live conductor, a person working alone.
+2. **Decide who might be harmed, and how.** Not just you. Performers, audience, the cleaner at
+   06:00 who does not know the trap is unlocked.
+3. **Evaluate: how likely, and how bad.** Likelihood times severity is the usual grid, and its
+   purpose is not the number, it is forcing the two questions to be asked separately.
+4. **Control, in order of effectiveness.** This order is not a preference, it is the hierarchy every
+   standard uses.
+5. **Record it, and review it when anything changes.** A risk assessment written for the get-in and
+   never looked at again is paperwork; one that is revisited when the design changes is engineering.
+
+### The hierarchy of control
+
+| | Control | Example on a production |
+| --- | --- | --- |
+| 1 | **Eliminate** the hazard | Do it with a projection instead of a moving truck |
+| 2 | **Substitute** something safer | Extra-low voltage practical instead of mains |
+| 3 | **Engineering controls** | Guards, interlocks, an isolating transformer, an RCD |
+| 4 | **Administrative controls** | Procedures, training, signage, a permit to work |
+| 5 | **PPE** | Gloves, glasses, arc-rated clothing |
+
+**PPE is last for a reason.** It protects one person, only if worn, only if correct, and only if it
+has not been damaged. Everything above it protects everybody in the room whether or not they were
+paying attention. A production that reaches for PPE before it has considered the four above it has
+skipped the effective options.
+
+---
+
+## PPE, arc flash, and working near live equipment
+
+<!--anim:ppe-arc-->
+
+The shock hazard is the one everybody thinks about. The other one is **arc flash**: a short circuit
+in a distribution board releases its energy as an explosion of plasma, molten metal and pressure,
+in a few milliseconds. The temperature at the arc is several times the surface of the sun, and the
+injury is thermal rather than electrical.
+
+It is a hazard of **energy available at the fault**, not of voltage. A 400 A distribution panel is
+far more dangerous in this respect than a 230 V socket, which is why the rules tighten as you move
+upstream toward the incoming supply.
+
+What this means for you, on the productions you will actually run:
+
+- **The controls are the same four you already know.** De-energise, lock off, prove dead, and do not
+  work live. Nearly all arc flash incidents happen during live work that did not need to be live.
+- **If work must be live**, that is a specialist with a permit, arc-rated clothing, a face shield
+  and insulated tools. It is not you, and "the show is in an hour" does not change that.
+- **Ordinary PPE still earns its place.** Safety glasses when cutting, drilling or soldering.
+  Gloves when handling sharp-edged chassis. Hearing protection near a genny. Nothing exotic, and
+  people still skip all three.
+- **No jewellery, watch or lanyard near a panel.** A metal bracelet across two busbars is both a
+  short circuit and a bracelet that cannot be removed.
 
 ---
 

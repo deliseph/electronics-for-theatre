@@ -30,6 +30,26 @@ Meter, notebook, headphones, and your XLR cable.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the drawing you made of mains on a scope |
+| 35 | The idea | The four controls, triggering, probes, and the method for hunting hum |
+| 35 | Bench A | Learn the four controls, and compensate your probe |
+| 35 | Bench B | The waveform zoo: nine stations, identify and sketch each |
+| 15 | Break |  |
+| 30 | Bench C | Ripple hunting: three supplies that look identical on DC coupling |
+| 60 | Bench D | The hum hunt: four faults, in pairs, logged |
+| 10 | Bench E | Prove it: put each fault back and confirm the symptom returns |
+| 10 | Close | Which pair had the best log, and why the log is what is marked |
+
+---
+
 ## The oscilloscope: the first instrument that shows you time
 
 A meter gives you one number, averaged over a period. A scope draws voltage against time, and
@@ -172,6 +192,40 @@ Reproduce the fault deliberately after fixing it. If you cannot make it come bac
 fix, you did not find the cause, you found a coincidence.
 
 This step is skipped almost universally and it is the one that separates a repair from a hope.
+
+---
+
+## Measuring a frequency response
+
+A scope shows you one frequency at a time. To ask "what does this box do to everything" you sweep a
+generator across the band and record the output at each point.
+
+<!--anim:freq-response-->
+
+The method, which takes about ten minutes once and answers a question that would otherwise be an
+argument:
+
+1. Feed a sine at 1 kHz and set the level so the output is comfortably on screen. **That is your
+   0 dB reference**, and everything else is relative to it.
+2. Change frequency without touching the level. Record the output amplitude at 20, 50, 100, 200,
+   500 Hz, 1, 2, 5, 10, 20 kHz. Ten points is enough to see the shape.
+3. Convert each to dB relative to the reference: `20 × log10(V ÷ V_ref)`.
+4. Plot it on a logarithmic frequency axis, because that is how hearing works and because a filter
+   is a straight line on those axes and a curve on linear ones.
+
+What you are looking for:
+
+| Shape | Means |
+| --- | --- |
+| Flat within a decibel across the band | It is doing nothing, which is usually the intention |
+| Falling above a few kHz | Cable capacitance and source impedance, or a deliberate filter |
+| Falling below a few hundred hertz | A coupling capacitor too small, or a deliberate high pass |
+| A peak somewhere | Resonance. Rarely intended, often a badly damped filter |
+| Falling at both ends | Normal for a transformer-coupled stage |
+
+The −3 dB points are where the response has fallen to about 70 per cent of the reference voltage,
+and quoting a bandwidth means quoting those two frequencies. A specification that says "20 Hz to
+20 kHz" without saying at what tolerance has told you nothing.
 
 ---
 

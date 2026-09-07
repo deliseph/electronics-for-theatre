@@ -1093,3 +1093,100 @@ register('series-parallel-math', (host) => {
   });
   upd();
 });
+
+// ---------------------------------------------------------------------------
+// Energy, and what it costs
+// ---------------------------------------------------------------------------
+
+register('energy-cost', (host) => {
+  let watts = 500, count = 100, hours = 3, days = 28;
+  const TARIFF = 1.3;   // HK$ per kWh, indicative commercial rate
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Power is what it draws. Energy is what it costs.',
+    sub: 'One lamp for one show is nothing. A rig for a run is a number somebody has to find.',
+    note: '',
+  });
+
+  const kwh = () => (watts * count * hours * days) / 1000;
+
+  const upd = () => {
+    const e = kwh();
+    setNote(`${count} × ${watts} W for ${hours} hours over ${days} performances is ${sig(e)} kWh, about HK$${Math.round(e * TARIFF)}. <b>One lamp for one show is two dollars and irrelevant; a rig for a run is the number that moved this industry to LED far faster than any argument about colour quality.</b>`);
+    cv.once();
+  };
+
+  controls.append(slider('Watts each', {
+    min: 25, max: 2000, step: 25, value: 500, fmt: (v) => `${v} W`,
+    on: (v) => { watts = v; upd(); },
+  }).node);
+  controls.append(slider('How many', {
+    min: 1, max: 200, step: 1, value: 100, fmt: (v) => String(v),
+    on: (v) => { count = v; upd(); },
+  }).node);
+  controls.append(slider('Hours per show', {
+    min: 1, max: 8, step: 0.5, value: 3, fmt: (v) => `${v} h`,
+    on: (v) => { hours = v; upd(); },
+  }).node);
+  controls.append(slider('Performances', {
+    min: 1, max: 60, step: 1, value: 28, fmt: (v) => String(v),
+    on: (v) => { days = v; upd(); },
+  }).node);
+
+  challenge('Find a rig and a run that costs more than five thousand dollars in electricity.',
+    () => kwh() * TARIFF > 5000);
+
+  const cv = canvas(stage, {
+    height: 250, animated: false,
+    draw(g, w) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const e = kwh();
+      const totalW = watts * count;
+
+      // The chain of multiplications, drawn, because that is the whole idea.
+      const steps = [
+        [`${watts} W`, 'each'],
+        [`× ${count}`, 'fixtures'],
+        [`× ${sig(hours)} h`, 'per show'],
+        [`× ${days}`, 'shows'],
+      ];
+      const bw = Math.min(96, (w - pad * 2 - 3 * 8) / 4);
+      steps.forEach(([big, small], k) => {
+        const x = pad + k * (bw + 8);
+        box(g, x, 22, bw, 46, { fill: p.raised, stroke: p.line, r: 7 });
+        label(g, big, x + bw / 2, 40, { color: p.ink, size: 13, weight: 700, align: 'center', mono: true, max: bw - 8 });
+        label(g, small, x + bw / 2, 56, { color: p.muted, size: 9.5, align: 'center', max: bw - 8 });
+      });
+
+      const ry = 84;
+      readoutChip(g, pad, ry, 'CONNECTED LOAD', eng(totalW, 'W'), {
+        color: R.energy, p, w: Math.min(150, (w - pad * 2 - 12) / 3),
+      });
+      const cw = Math.min(150, (w - pad * 2 - 12) / 3);
+      readoutChip(g, pad + cw + 6, ry, 'ENERGY OVER THE RUN', `${sig(e)} kWh`, { color: R.signal, p, w: cw });
+      readoutChip(g, pad + (cw + 6) * 2, ry, 'AT HK$1.30 A UNIT', `$${Math.round(e * TARIFF)}`, {
+        color: e * TARIFF > 3000 ? R.fault : R.safe, p, w: cw,
+      });
+
+      // The three places this arithmetic decides something.
+      const ty = ry + 54;
+      const rows = [
+        ['Generator', `${sig(totalW / 1000 / 0.9)} kVA before headroom, at a power factor of 0.9`],
+        ['Heat in the room', `${eng(totalW, 'W')} of electrical power is ${eng(totalW, 'W')} of heat`],
+        ['If it were LED', `about ${eng(totalW * 0.25, 'W')}, so $${Math.round(e * TARIFF * 0.25)} over the same run`],
+      ];
+      rows.forEach(([a, b], k) => {
+        const y = ty + k * 20;
+        label(g, a, pad, y, { color: p.muted, size: 11, weight: 600, max: w * 0.3 });
+        label(g, b, pad + Math.max(w * 0.32, 120), y, {
+          color: p.ink2, size: 11, max: w - pad - Math.max(w * 0.32, 120),
+        });
+      });
+      label(g, 'Every watt of electrical power in a closed room becomes a watt of heat. A dimmer rack is a heater.',
+        pad, ty + 68, { color: p.muted, size: 10.5, max: w - pad * 2 });
+    },
+  });
+  upd();
+});

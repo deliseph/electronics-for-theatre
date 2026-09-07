@@ -29,6 +29,26 @@ Meter, scope skills, notebook, and the DMX cable you made in Class 4.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and how many universes your console actually outputs |
+| 40 | The idea | From voltage to meaning. Serial framing, differential signalling, and DMX512 in detail |
+| 15 | Break |  |
+| 25 | The idea | Topology, termination and reflections, then the rest of the protocol landscape |
+| 35 | Bench A | Read a serial line: measure a bit, calculate the rate, decode a byte by hand |
+| 35 | Bench B | Anatomy of a DMX packet, and the refresh rate at two channel counts |
+| 35 | Bench C | Termination proved, and the cable length calculated from the reflection |
+| 35 | Bench D | Address collisions and off-by-one, described as a stage manager would |
+| 10 | Close | State against event, and why that decides how each protocol fails |
+
+---
+
 ## From voltage to meaning
 
 Everything so far has been about what a voltage *is*. This class is about what a voltage *means*,
@@ -179,6 +199,65 @@ subscribe to the universes they want and the switch only sends those. On a large
 difference between a network that works and one that saturates, and it is why sACN has largely won.
 
 <!--anim:packet-network-->
+
+---
+
+## The network underneath
+
+sACN and Art-Net are DMX carried by an ordinary network, which means every network fault is now
+also a lighting fault. You do not need to be a network engineer, but three ideas stop most of them.
+
+<!--anim:ip-basics-->
+
+**An address and a mask.** A device has an address like `10.101.3.42` and a mask like
+`255.255.255.0`, usually written `/24`. The mask says which part of the address is the
+neighbourhood and which part is the house. Two devices can only talk directly if their
+neighbourhood parts match.
+
+That single sentence is the whole of fault 11 in Class 10: a node on `2.0.0.5/8` and a console on
+`10.101.3.10/24` are in different neighbourhoods, so they cannot reach each other, and both report
+themselves as perfectly healthy.
+
+**Art-Net's historical addresses.** Art-Net grew up on `2.x.x.x` with a `/8` mask, and much
+equipment still defaults there. sACN does not care and normally uses whatever the venue uses. A rig
+with both on it needs a deliberate decision rather than two sets of defaults.
+
+**Separating traffic.** A show network carries control that has a deadline and management traffic
+that does not. Putting a laptop's software updates on the same VLAN as your lighting is the most
+common self-inflicted wound in this part of the industry. Separate them physically, or by VLAN, and
+the sibling module on
+[computer systems and networking](https://github.com/deliseph/theatre-computer-systems) is four
+hours on exactly this.
+
+---
+
+## RDM: the return path DMX never had
+
+<!--anim:rdm-discovery-->
+
+Remote Device Management adds a conversation to a line that was designed to be a monologue. The
+controller stops transmitting DMX briefly, sends a request, and listens for a reply in the gap.
+
+What it gives you is genuinely transformative on a big rig:
+
+- **Discovery.** Find every responding device on the line, with its manufacturer, model and serial.
+- **Addressing.** Set a fixture's address and personality from the desk, rather than on a ladder.
+- **Sensors.** Read a fixture's lamp hours, internal temperature and fan status.
+- **Identify.** Make one fixture announce itself, which is how you find the third one on run two.
+
+Three practical constraints, and they are all the same constraint:
+
+**Everything in the path must pass it.** A splitter that is not RDM-capable blocks the return
+direction while passing DMX perfectly, so the fixtures work and none of them are discoverable. That
+is fault-finding misery, because the symptom points at the fixtures and the cause is a box in the
+middle.
+
+**It shares the line's time budget.** Discovery is chatty, and running it during a show steals
+slots from the DMX. Discover during the rig check, not during the performance.
+
+**Not every fixture implements all of it.** The standard is large and support is partial, so a
+fixture that discovers but will not accept an address change is behaving badly rather than being
+broken.
 
 ---
 

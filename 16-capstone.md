@@ -32,6 +32,24 @@ cables you made in Class 4.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | How the day runs, and the weighting: the fault exam is the largest single part |
+| 30 | Bench A | Set up, then operate a partner’s piece from their sheet alone, in silence |
+| 40 | Bench B | Demonstration and viva: prove your claims with instruments |
+| 15 | Break |  |
+| 90 | Bench C | The fault-finding exam: three systems, thirty minutes each, alone, logged |
+| 40 | Bench D | Debrief: the faults revealed, the fastest route to each, and what misled people |
+| 15 | Close | One sentence each on what you do badly under pressure. No marks attached |
+
+---
+
 ## What the capstone is
 
 A working piece of show electronics that you designed, built, tested and documented. It must:
@@ -149,6 +167,28 @@ A shape that works, and that you should practise:
 - **25–30 min.** Prove the fix, or write down where you got to, what you excluded, and what your next
   test would be. **Never leave this blank.** It is worth marks and it is what a real handover looks
   like at the end of a shift.
+
+---
+
+## The documentation sheet, in detail
+
+Twenty per cent of the mark, and the part most people lose points on. It is one side of A4 and it
+has ten things on it.
+
+<!--anim:doc-sheet-->
+
+It is not paperwork. It is the answer to the questions somebody will ask at 19:45 when your device
+has stopped and you are not in the building: what is it, what is it rated for, what does it do when
+it loses signal, and how do I reset it. Without the sheet, the honest answer is "we would have to
+take it apart", and the real answer becomes "use something else".
+
+**The stranger test is the specification.** Somebody who has not seen the device, given only the
+sheet and no conversation, must be able to power it up, trigger it, cause a fault, identify the
+fault from the indicator, and reset it. Anything they have to guess is a defect in the sheet rather
+than a shortcoming in them.
+
+Test it on somebody outside this course before you arrive. Every question they ask is a point you
+have not written down, and it is far cheaper to find them the week before than in the peer review.
 
 ---
 

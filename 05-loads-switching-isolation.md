@@ -31,6 +31,26 @@ Meter, notebook, and the cables you made in Class 4.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the guess you brought about a pin driving a relay coil |
+| 50 | The idea | The problem this class solves. Relays, contact ratings read properly, and the flyback diode |
+| 15 | Break |  |
+| 25 | The idea | MOSFETs and gate drive, switching against varying, isolation, and inrush |
+| 40 | Bench A | Drive a relay properly, then remove the diode and photograph the trace |
+| 40 | Bench B | MOSFET driven well and driven badly, with the temperature measured |
+| 30 | Bench C | Isolation, proved with a meter, then deliberately destroyed |
+| 20 | Bench D | Inrush, watched on a current probe, one supply then four |
+| 10 | Close | The two photographs that settle any future argument about the diode |
+
+---
+
 ## The problem this class solves
 
 A microcontroller pin can supply about 20 milliamps at 3.3 or 5 volts. That is a fortieth of a
@@ -201,6 +221,59 @@ switch at the same instant, is a very large momentary current, and the breaker s
 This is why the answer is often **sequencing** rather than a bigger breaker: bring circuits up in
 groups a second apart, and the peaks never coincide. It is why powered devices in a rack are
 switched by a sequencer, and it is a design decision that belongs to you, not to the electrician.
+
+---
+
+## Dimmers: how a lamp is actually dimmed
+
+Everything above is switching a load on and off. Dimming is the same problem with a number attached,
+and the theatre industry has solved it three different ways, which is why "it does not dim properly"
+is such a common complaint.
+
+<!--anim:dimmer-types-->
+
+### Phase control, which is what a dimmer rack does
+
+<!--anim:phase-control-->
+
+A triac or a pair of thyristors waits some fraction of each mains half-cycle and then switches on,
+conducting for the rest of it. Delay the firing angle and the lamp receives less energy.
+
+It is cheap, it handles kilowatts, and it has three consequences you will meet constantly:
+
+**It chops the waveform**, so it generates harmonics far up the audio band. That is the buzz in
+Class 7 and Class 8, and it is why dimmer feeds and audio cables are routed separately.
+
+**It needs a choke.** The sudden switch-on would otherwise produce a current edge steep enough to
+make the lamp filament sing audibly. The choke slows the edge, which is what the rise time figure
+on a dimmer's specification means, and it is why a dimmer rack is heavy.
+
+**It assumes a resistive load.** A tungsten filament is happy with a chopped waveform because it
+integrates the energy thermally. An LED driver, a fan or a transformer is not, and connecting one
+to a phase-control dimmer produces flicker, buzz, or a dead driver. This is the whole technical
+content of "you cannot dim that on a dimmer".
+
+### Sine wave dimming
+
+An IGBT-based dimmer that reconstructs a genuine reduced-amplitude sine rather than chopping.
+Silent, harmonically clean, kind to non-resistive loads, and several times the price. It exists
+because opera houses and broadcast studios could not live with the first option.
+
+### Constant-current drivers, which is what LED fixtures do
+
+An LED fixture is not dimmed by varying its supply at all. Its internal driver holds the current
+and dims by PWM, exactly as in Class 11, at whatever frequency the manufacturer chose. The fixture
+is fed a constant mains supply and told what to do over DMX.
+
+This is why **an LED fixture must go on a relay circuit or a permanently live feed, never a dimmer
+way**, and why patching one to a dimmer is one of the fourteen faults in Class 10.
+
+| | Phase control | Sine wave | Constant current |
+| --- | --- | --- | --- |
+| Dims | Tungsten, resistive | Almost anything | The LEDs inside one fixture |
+| Noise | Harmonics, filament sing | Very low | PWM, possibly on camera |
+| Cost | Low | High | Built into the fixture |
+| Fed with | A dimmer way | A dimmer way | A constant live feed |
 
 ---
 

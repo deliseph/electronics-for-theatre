@@ -35,6 +35,26 @@ the insulation is intact.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the two sentences this class is about |
+| 40 | The idea | What each meter mode really asks the circuit, the four rules of measuring, and the three ways a meter lies |
+| 30 | Bench A | Calibrate yourself against your own meter on things you already know |
+| 45 | Bench B | Prediction discipline: ten circuits, predicted before measured |
+| 15 | Break |  |
+| 45 | Bench C | Make the meter lie to you, deliberately: loading, ghost voltage, in-circuit resistance |
+| 30 | Bench D | Fifteen cables, five-step procedure, logged and labelled |
+| 15 | Watch | Proving dead on a live circuit, demonstrated |
+| 10 | Close | The two tests everybody skips, and why they are the two that matter |
+
+---
+
 ## Why this class is here
 
 The single most valuable professional habit in this entire course is the difference between these
@@ -210,6 +230,63 @@ For a two-conductor or three-conductor cable, with the cable disconnected from e
 
 Steps 2 and 4 are the ones that get skipped, and they are the two that find the faults that waste a
 technical rehearsal.
+
+---
+
+## Measuring current without breaking the circuit
+
+Everything above assumes you can open the circuit and insert the meter. On a mains circuit, in a
+rack, during a show, you cannot.
+
+<!--anim:clamp-meter-->
+
+A **clamp meter** measures the magnetic field around a conductor and reports the current in it,
+with no electrical connection and nothing disconnected. It is the only practical way to answer "how
+much is that circuit actually drawing" on a live installation, and for a technical director it is
+often the more useful instrument of the two.
+
+Four things to know before you trust one:
+
+1. **Clamp one conductor only.** Around a whole flex, the live and neutral currents are equal and
+   opposite and cancel: the meter reads zero. That is not a fault, it is the same physics an RCD
+   uses, and it catches everybody once.
+2. **AC clamps are common, DC clamps are not.** A cheap clamp meter reads AC only, because it works
+   by transformer action and a steady field induces nothing. A Hall-effect clamp reads both and
+   costs more.
+3. **Low currents are where they are worst.** Below an amp or so, a general-purpose clamp is
+   guessing. Wind ten turns of the conductor through the jaw and divide the reading by ten: an old
+   trick, and it genuinely works.
+4. **True RMS matters more here than anywhere**, because what you are usually clamping is a dimmer
+   or a switch-mode load, which is exactly the waveform an averaging meter gets wrong.
+
+---
+
+## Proving insulation, which is a different question
+
+Continuity asks "is there a path". Insulation testing asks the opposite: **"is there definitely no
+path"**, at a voltage high enough to matter.
+
+<!--anim:insulation-test-->
+
+An insulation tester applies 250, 500 or 1000 V DC between conductors, or between a conductor and
+earth, and measures the resistance. Your multimeter applies a couple of volts, and insulation that
+looks like ten megohms at 2 V can break down completely at 500 V. That gap is the whole reason the
+instrument exists.
+
+What the numbers mean, roughly:
+
+| Reading at 500 V | What it means |
+| --- | --- |
+| Above 100 MΩ | Healthy |
+| 2 MΩ to 100 MΩ | Usually acceptable, worth a note and a re-test |
+| Under 1 MΩ | Investigate. Damp, contamination, or damaged insulation |
+| Under 0.5 MΩ | Fail. Do not energise |
+
+**Two warnings.** It applies a real voltage, so nothing sensitive may be connected: semiconductors,
+surge protection and any electronics will be damaged or will make the reading meaningless. And the
+cable holds a charge afterwards, so a proper tester discharges it and you check that it has.
+
+You will watch this in Class 6 on your own driver board, and again in Class 15 on a cable.
 
 ---
 

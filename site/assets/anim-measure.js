@@ -597,3 +597,269 @@ register('true-rms', (host) => {
   });
   upd();
 });
+
+// ---------------------------------------------------------------------------
+// The clamp meter
+// ---------------------------------------------------------------------------
+
+register('clamp-meter', (host) => {
+  let around = 'live';   // live | both | ten
+  let dc = false;
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Measuring current without opening the circuit',
+    sub: 'Clamp one conductor, then the whole flex, and see why the second reads nothing.',
+    note: '',
+  });
+
+  const reading = () => {
+    if (around === 'both') return 0;
+    if (around === 'ten') return 8.4;   // ten turns of a 0.84 A load
+    return dc ? 0 : 8.4;
+  };
+
+  const upd = () => {
+    setNote(around === 'both'
+      ? 'Around the whole flex the live and neutral currents are equal and opposite, so their magnetic fields cancel and the meter reads zero. <b>That is not a fault, it is exactly the physics an RCD uses to detect a leakage, and it catches everybody once.</b>'
+      : around === 'ten'
+        ? 'Ten turns of the conductor through the jaw multiplies the field by ten, so a small current becomes readable and you divide the answer by ten. <b>An old trick, and it genuinely works: below about an amp a general-purpose clamp is otherwise guessing.</b>'
+        : dc
+          ? 'A cheap clamp works by transformer action, and a steady field induces nothing, so it reads zero on DC however much is flowing. <b>Reading DC needs a Hall-effect clamp, and that is most of the price difference between two meters that look identical.</b>'
+          : 'Around one conductor only, the field is proportional to the current in it. Nothing is disconnected and nothing is touched. <b>For a technical director this is often the more useful of the two instruments: it is the only practical way to ask what a circuit is actually drawing on a live installation.</b>');
+    cv.once();
+  };
+
+  controls.append(choice('Clamp around', [
+    ['live', 'The live only'], ['both', 'The whole flex'], ['ten', 'Ten turns of the live'],
+  ], { value: 'live', on: (v) => { around = v; upd(); } }).node);
+  controls.append(toggle('Load is DC', { value: false, on: (v) => { dc = v; upd(); } }).node);
+
+  challenge('Make a real current read as zero, twice, for two different reasons.',
+    () => around === 'both' || (dc && around === 'live'));
+
+  const cv = canvas(stage, {
+    height: 260,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const cy = 74;
+      const x0 = pad + 24, x1 = w - 130;
+      const val = reading();
+
+      // The conductors.
+      const both = around === 'both';
+      line(g, x0, cy - 9, x1, cy - 9, { color: R.fault, lw: 3 });
+      line(g, x0, cy + 9, x1, cy + 9, { color: p.ink2, lw: 3 });
+      label(g, 'LIVE', x0, cy - 22, { color: R.fault, size: 9.5, weight: 700 });
+      label(g, 'NEUTRAL', x0, cy + 24, { color: p.ink2, size: 9.5, weight: 700 });
+
+      // Current, out on live and back on neutral. Equal and opposite is the
+      // whole point, so it is drawn as such.
+      const speed = dc ? 0.5 : 0.5;
+      for (let k = 0; k < 7; k++) {
+        const u = ((t * speed + k / 7) % 1);
+        g.fillStyle = R.fault;
+        g.beginPath(); g.arc(x0 + u * (x1 - x0), cy - 9, 3, 0, Math.PI * 2); g.fill();
+        g.fillStyle = p.ink2;
+        g.beginPath(); g.arc(x1 - u * (x1 - x0), cy + 9, 3, 0, Math.PI * 2); g.fill();
+      }
+
+      // The jaw, around whatever was chosen.
+      const jx = (x0 + x1) / 2;
+      const jy = both ? cy : cy - 9;
+      const jr = both ? 30 : 20;
+      g.strokeStyle = R.signal;
+      g.lineWidth = 4;
+      g.beginPath();
+      g.arc(jx, jy, jr, -Math.PI * 0.42, Math.PI * 1.42);
+      g.stroke();
+      label(g, both ? 'around both' : around === 'ten' ? 'ten turns' : 'around live only', jx, jy - jr - 10, {
+        color: R.signal, size: 9.5, align: 'center', max: 150,
+      });
+
+      // Ten turns, drawn as extra loops through the jaw.
+      if (around === 'ten') {
+        for (let k = 1; k <= 4; k++) {
+          g.strokeStyle = alpha(R.fault, 0.45);
+          g.lineWidth = 2;
+          g.beginPath();
+          g.ellipse(jx, cy - 9, 14 + k * 3, 22 + k * 4, 0, 0, Math.PI * 2);
+          g.stroke();
+        }
+      }
+
+      // The fields, and their cancellation.
+      if (!dc || around === 'ten') {
+        const mag = both ? 0 : 1;
+        for (let k = 1; k <= 2; k++) {
+          g.strokeStyle = alpha(R.energy, (both ? 0.12 : 0.4) / k);
+          g.lineWidth = 1.5;
+          g.beginPath(); g.arc(jx, cy - 9, 8 + k * 7, 0, Math.PI * 2); g.stroke();
+          if (both) {
+            g.strokeStyle = alpha(R.signal, 0.12 / k);
+            g.beginPath(); g.arc(jx, cy + 9, 8 + k * 7, 0, Math.PI * 2); g.stroke();
+          }
+        }
+        if (both) {
+          label(g, 'equal and opposite: they cancel', jx, cy + 46, {
+            color: R.fault, size: 10, align: 'center', weight: 600, max: 200,
+          });
+        }
+      } else {
+        label(g, 'steady field: nothing to induce', jx, cy + 40, {
+          color: R.fault, size: 10, align: 'center', weight: 600, max: 200,
+        });
+      }
+
+      meter(g, w - 116, 36, 104, p, {
+        mode: around === 'ten' ? 'A~ clamp (÷10)' : 'A~ clamp',
+        reading: val === 0 ? '0.00' : sig(around === 'ten' ? val / 10 : val),
+        unit: 'amps',
+        verdict: val === 0 ? 'reads nothing' : 'correct',
+        tone: val === 0 ? R.fault : R.safe,
+      });
+
+      const ty = 150;
+      const rows = [
+        ['Clamp one conductor only', 'around a whole flex the currents cancel and it reads zero'],
+        ['AC clamps are common, DC are not', 'a Hall-effect jaw reads both, and costs more'],
+        ['Below about an amp it is guessing', 'ten turns through the jaw, then divide by ten'],
+        ['True RMS matters most here', 'what you clamp is usually a dimmer or a switching load'],
+      ];
+      rows.forEach(([a, b], k) => {
+        const y = ty + k * 18;
+        label(g, a, pad, y, { color: p.ink2, size: 10.5, weight: 600, max: w * 0.4 });
+        label(g, b, pad + Math.max(w * 0.42, 160), y, {
+          color: p.muted, size: 10.5, max: w - pad - Math.max(w * 0.42, 160),
+        });
+      });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Insulation testing
+// ---------------------------------------------------------------------------
+
+register('insulation-test', (host) => {
+  let testV = 500;
+  let condition = 'good';
+
+  const COND = {
+    good: ['Healthy cable', 900],
+    damp: ['Damp, or contaminated', 1.2],
+    damaged: ['Insulation damaged', 0.2],
+  };
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Insulation that looks fine at two volts',
+    sub: 'Your multimeter asks at a couple of volts. This asks at five hundred, and gets a different answer.',
+    note: '',
+  });
+
+  // Weak insulation breaks down as the applied voltage rises; healthy
+  // insulation does not care.
+  const resistance = () => {
+    const base = COND[condition][1];
+    if (condition === 'good') return base;
+    return base * Math.max(0.02, 1 - (testV / 1000) * 0.92);
+  };
+
+  const upd = () => {
+    const r = resistance();
+    setNote(condition === 'good'
+      ? `${sig(r)} MΩ at ${testV} V, and it barely moves with the test voltage. <b>That is what healthy insulation looks like: the reading is the same question answered the same way however hard you ask.</b>`
+      : `At 2 V a multimeter would report this as open circuit. At ${testV} V it reads ${sig(r)} MΩ. <b>The insulation breaks down under the voltage it will actually see in service, which is precisely the gap between the two instruments and the whole reason this one exists.</b>`);
+    cv.once();
+  };
+
+  controls.append(choice('Test voltage', [[250, '250 V'], [500, '500 V'], [1000, '1000 V']], {
+    value: 500, on: (v) => { testV = +v; upd(); },
+  }).node);
+  controls.append(choice('Cable', Object.entries(COND).map(([k, v]) => [k, v[0]]), {
+    value: 'good', on: (v) => { condition = v; upd(); },
+  }).node);
+
+  challenge('Find a cable a multimeter would pass and an insulation tester fails.',
+    () => condition !== 'good' && resistance() < 1);
+
+  const cv = canvas(stage, {
+    height: 270,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const r = resistance();
+      const cy = 62;
+      const x0 = pad + 20, x1 = w - 132;
+
+      // Conductor, insulation, and the earth outside it.
+      line(g, x0, cy, x1, cy, { color: R.fault, lw: 4 });
+      const bad = condition !== 'good';
+      g.strokeStyle = bad ? alpha(R.fault, 0.5) : alpha(R.safe, 0.7);
+      g.lineWidth = 12;
+      g.globalAlpha = 0.28;
+      g.beginPath();
+      g.moveTo(x0, cy); g.lineTo(x1, cy);
+      g.stroke();
+      g.globalAlpha = 1;
+      label(g, 'conductor, at the test voltage', x0, cy - 22, { color: R.fault, size: 10 });
+      line(g, x0, cy + 34, x1, cy + 34, { color: R.safe, lw: 2 });
+      groundSym(g, (x0 + x1) / 2, cy + 38, R.safe);
+      label(g, 'earth, or the other conductor', x0, cy + 52, { color: R.safe, size: 10 });
+
+      // Leakage, drawn where the insulation is failing.
+      if (r < 100) {
+        const n = r < 1 ? 5 : 2;
+        for (let k = 0; k < n; k++) {
+          const lx = x0 + 50 + k * ((x1 - x0 - 100) / Math.max(1, n - 1));
+          const u = ((t * 1.4 + k / n) % 1);
+          line(g, lx, cy + 6, lx, cy + 32, { color: alpha(R.fault, 0.45), lw: 1.5, dash: [3, 3] });
+          g.fillStyle = R.fault;
+          g.beginPath();
+          g.arc(lx, cy + 6 + u * 26, 2.8, 0, Math.PI * 2);
+          g.fill();
+        }
+        label(g, 'leakage', (x0 + x1) / 2, cy + 18, {
+          color: R.fault, size: 9.5, align: 'center', weight: 700,
+        });
+      }
+
+      const tone = r > 100 ? R.safe : r > 2 ? R.energy : R.fault;
+      meter(g, w - 120, 30, 108, p, {
+        mode: `${testV} V insulation`,
+        reading: r > 999 ? '>999' : sig(r),
+        unit: 'megohms',
+        verdict: r > 100 ? 'healthy' : r > 2 ? 'investigate' : 'FAIL',
+        tone,
+      });
+      meter(g, w - 120, 118, 108, p, {
+        mode: 'Multimeter at 2 V',
+        reading: 'OL',
+        unit: 'open circuit',
+        verdict: bad ? 'says nothing is wrong' : 'agrees',
+        tone: bad ? R.fault : p.muted,
+      });
+
+      const ty = 152;
+      const bands = [
+        ['Above 100 MΩ', 'healthy', R.safe],
+        ['2 to 100 MΩ', 'usually acceptable, note it and re-test', R.safe],
+        ['Under 1 MΩ', 'investigate: damp, contamination, damage', R.energy],
+        ['Under 0.5 MΩ', 'fail. Do not energise', R.fault],
+      ];
+      bands.forEach(([a, b, col], k) => {
+        const y = ty + k * 18;
+        label(g, a, pad, y, { color: col, size: 10.5, weight: 600, max: w * 0.3 });
+        label(g, b, pad + Math.max(w * 0.32, 120), y, {
+          color: p.muted, size: 10.5, max: w - pad - Math.max(w * 0.32, 120) - 130,
+        });
+      });
+      label(g, 'It applies a real voltage: nothing sensitive may be connected, and the cable holds a charge afterwards.',
+        pad, ty + 78, { color: p.muted, size: 10.5, max: w - pad * 2 });
+    },
+  });
+  upd();
+});

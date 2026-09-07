@@ -898,3 +898,293 @@ register('hum-method', (host) => chain(host, {
   ],
   footer: 'The marking in Class 8 is on the log, not on the time. A pair who found three faults with a clear log has done better work than a pair who found four by swapping cables at random.',
 }));
+
+// ---------------------------------------------------------------------------
+// Gain structure
+// ---------------------------------------------------------------------------
+
+register('gain-structure', (host) => {
+  let earlyGain = 40, lateGain = 0;
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Where you add the gain decides what you hear',
+    sub: 'The same total gain, moved between the first stage and the last. One of these is hiss.',
+    note: '',
+  });
+
+  // A microphone at −50 dBu, three stages each adding their own noise floor.
+  const model = () => {
+    const startSig = -50;
+    const startNoise = -110;
+    let sigL = startSig + earlyGain;
+    let noiseL = 10 * Math.log10(10 ** (startNoise / 10) * 10 ** (earlyGain / 10) + 10 ** (-98 / 10));
+    const clipped = sigL > 18;
+    // Everything after a clip is reproduced faithfully, distortion included.
+    sigL = Math.min(sigL, 18);
+    sigL += lateGain;
+    noiseL = 10 * Math.log10(10 ** (noiseL / 10) * 10 ** (lateGain / 10) + 10 ** (-92 / 10));
+    return { sig: sigL, noise: noiseL, snr: sigL - noiseL, headroom: 18 - sigL, clipped };
+  };
+
+  const upd = () => {
+    const m = model();
+    setNote(m.clipped
+      ? `The first stage is clipping. Every stage after it reproduces the distortion faithfully, and no amount of turning down later removes it, because the information is gone. <b>Gain too high early is unrecoverable in a way that gain too low never is.</b>`
+      : m.snr < 55
+        ? `Signal to noise is only ${Math.round(m.snr)} dB. The signal spent the chain close to the noise floor and the last stage lifted noise and signal together. <b>It sounds hissy, and turning anything down makes it worse.</b>`
+        : `${Math.round(m.snr)} dB of signal to noise with ${Math.round(m.headroom)} dB of headroom left. <b>Get the signal up to a healthy level as early as possible, then leave it alone: amplify at the first stage and the noise you amplify is only the source’s own.</b>`);
+    cv.once();
+  };
+
+  controls.append(slider('Gain at the preamp', {
+    min: 0, max: 70, step: 1, value: 40, fmt: (v) => `${v} dB`,
+    on: (v) => { earlyGain = v; upd(); },
+  }).node);
+  controls.append(slider('Gain at the amplifier', {
+    min: 0, max: 40, step: 1, value: 0, fmt: (v) => `${v} dB`,
+    on: (v) => { lateGain = v; upd(); },
+  }).node);
+
+  challenge('Reach a healthy level with more than 60 dB of signal to noise and no clipping.',
+    () => { const m = model(); return !m.clipped && m.snr > 60 && m.sig > -5; });
+
+  const cv = canvas(stage, {
+    height: 270, animated: false,
+    draw(g, w) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const m = model();
+      const gL = 46, gT = 24, gW = w - gL - pad, gH = 130;
+      const TOP = 24, BOT = -120;
+      const Y = (db) => gT + gH - ((db - BOT) / (TOP - BOT)) * gH;
+
+      // The scale: clipping at the top, the noise floor at the bottom.
+      for (const [db, name, col] of [[18, 'clip', R.fault], [0, '0 dBu', p.muted], [-50, 'mic level', p.muted], [-100, '', p.muted]]) {
+        const y = Y(db);
+        line(g, gL, y, gL + gW, y, { color: alpha(col, db === 18 ? 0.7 : 0.35), lw: 1, dash: db === 18 ? [4, 3] : null });
+        label(g, `${db}`, gL - 6, y, { color: col, size: 9, align: 'right', mono: true });
+        if (name) label(g, name, gL + gW - 2, y - 8, { color: col, size: 9, align: 'right' });
+      }
+
+      // Three stages, drawn as a level going through them.
+      const stages = ['source', 'preamp', 'processor', 'amplifier'];
+      const sigLevels = [-50, Math.min(-50 + earlyGain, 18), Math.min(-50 + earlyGain, 18), m.sig];
+      const noiseLevels = [-110, -110 + earlyGain, -110 + earlyGain, m.noise];
+      const step = gW / (stages.length - 1);
+
+      // Noise band, filled, because the gap is the whole subject.
+      g.fillStyle = alpha(R.fault, 0.12);
+      g.beginPath();
+      g.moveTo(gL, Y(sigLevels[0]));
+      sigLevels.forEach((v, k) => g.lineTo(gL + k * step, Y(v)));
+      for (let k = noiseLevels.length - 1; k >= 0; k--) g.lineTo(gL + k * step, Y(noiseLevels[k]));
+      g.closePath();
+      g.fill();
+
+      g.strokeStyle = m.clipped ? R.fault : R.safe;
+      g.lineWidth = 2.5;
+      g.beginPath();
+      sigLevels.forEach((v, k) => (k ? g.lineTo(gL + k * step, Y(v)) : g.moveTo(gL, Y(v))));
+      g.stroke();
+      g.strokeStyle = alpha(R.fault, 0.8);
+      g.lineWidth = 2;
+      g.beginPath();
+      noiseLevels.forEach((v, k) => (k ? g.lineTo(gL + k * step, Y(v)) : g.moveTo(gL, Y(v))));
+      g.stroke();
+
+      stages.forEach((s, k) => {
+        const x = gL + k * step;
+        line(g, x, gT, x, gT + gH, { color: alpha(p.line, 0.8), lw: 1 });
+        // The first and last labels sit on the axis ends, so they anchor
+        // inward rather than centring half of themselves off the canvas.
+        const align = k === 0 ? 'left' : k === stages.length - 1 ? 'right' : 'center';
+        label(g, s, x, gT + gH + 13, { color: p.muted, size: 9.5, align, max: step });
+      });
+      label(g, 'signal', gL + 6, Y(sigLevels[0]) - 10, { color: R.safe, size: 9.5, weight: 600 });
+      label(g, 'noise floor', gL + 6, Y(noiseLevels[0]) - 10, { color: R.fault, size: 9.5, weight: 600 });
+      if (m.clipped) {
+        label(g, 'CLIPPED — everything after this reproduces the distortion', gL + gW / 2, Y(18) - 12, {
+          color: R.fault, size: 10.5, align: 'center', weight: 700, max: gW,
+        });
+      }
+
+      const ry = gT + gH + 28;
+      const cw = Math.min(150, (w - pad * 2 - 12) / 3);
+      readoutChip(g, pad, ry, 'SIGNAL TO NOISE', `${Math.round(m.snr)} dB`, {
+        color: m.snr > 60 ? R.safe : R.fault, p, w: cw,
+      });
+      readoutChip(g, pad + cw + 6, ry, 'HEADROOM LEFT', `${Math.round(m.headroom)} dB`, {
+        color: m.headroom > 12 ? R.safe : R.fault, p, w: cw,
+      });
+      readoutChip(g, pad + (cw + 6) * 2, ry, 'VERDICT', m.clipped ? 'distorted' : m.snr < 55 ? 'hissy' : 'healthy', {
+        color: m.clipped || m.snr < 55 ? R.fault : R.safe, p, w: cw,
+      });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Phantom power
+// ---------------------------------------------------------------------------
+
+register('phantom', (host) => {
+  let on = true;
+  let cable = 'good';
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: '48 volts that the audio cannot see',
+    sub: 'The same DC on both signal conductors is common mode, and a differential receiver subtracts it away.',
+    note: '',
+  });
+
+  const upd = () => {
+    setNote(cable === 'shorted' && on
+      ? 'Pin 3 is shorted to pin 1 in the cable. The phantom supply now drives current through one side only, the balance is destroyed, and a real DC voltage appears across the input. <b>This is the practical reason for the pin-to-pin isolation test in Class 2, and it is how ribbon microphones are destroyed.</b>'
+      : on
+        ? '48 V is applied through a matched pair of 6.8 kΩ resistors to pin 2 and pin 3 equally, with pin 1 as the return. Both conductors sit at the same DC potential, so the differential receiver subtracts it and sees nothing. <b>It is common mode, which is exactly why it is invisible to the audio and why a balanced dynamic microphone is unharmed by it.</b>'
+        : 'Phantom off. A condenser microphone has no supply and produces nothing; a dynamic is unaffected either way. <b>If you do not know what is on the end of a line, this is where the switch stays.</b>');
+    cv.once();
+  };
+
+  controls.append(toggle('Phantom power on', { value: true, on: (v) => { on = v; upd(); } }).node);
+  controls.append(choice('Cable', [['good', 'Correctly wired'], ['shorted', 'Pin 3 shorted to pin 1']], {
+    value: 'good', on: (v) => { cable = v; upd(); },
+  }).node);
+
+  challenge('Create the condition that damages a ribbon microphone.', () => on && cable === 'shorted');
+
+  const cv = canvas(stage, {
+    height: 270,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const bad = on && cable === 'shorted';
+      const y2 = 56, y3 = 88, y1 = 120;
+      const x0 = pad + 90, x1 = w - pad - 120;
+
+      // The three conductors.
+      const dc = on ? 48 : 0;
+      [[y2, 'pin 2 · hot', R.signal], [y3, 'pin 3 · cold', R.signal], [y1, 'pin 1 · screen', p.ink2]].forEach(([y, n, col]) => {
+        const cut = bad && y === y3;
+        line(g, x0, y, x1, y, { color: cut ? R.fault : col, lw: 2.5 });
+        label(g, n, pad, y, { color: cut ? R.fault : col, size: 10, weight: 600 });
+      });
+      if (bad) {
+        line(g, (x0 + x1) / 2, y3, (x0 + x1) / 2, y1, { color: R.fault, lw: 3 });
+        label(g, 'short', (x0 + x1) / 2 + 6, (y3 + y1) / 2, { color: R.fault, size: 10, weight: 700 });
+      }
+
+      // The feed resistors, at the console end.
+      if (on) {
+        [y2, y3].forEach((y) => {
+          resistorSym(g, x1 + 6, y, 30, 11, R.energy, 2);
+          line(g, x1 + 36, y, x1 + 52, y, { color: R.energy, lw: 2 });
+        });
+        line(g, x1 + 52, y2, x1 + 52, y3, { color: R.energy, lw: 2 });
+        line(g, x1 + 52, (y2 + y3) / 2, x1 + 70, (y2 + y3) / 2, { color: R.energy, lw: 2 });
+        label(g, '+48 V', x1 + 74, (y2 + y3) / 2, { color: R.energy, size: 10.5, weight: 700 });
+        label(g, '6.8 kΩ', x1 + 21, y2 - 14, { color: p.muted, size: 9, align: 'center' });
+        label(g, 'matched pair', x1 + 21, y3 + 16, { color: p.muted, size: 9, align: 'center', max: 80 });
+      }
+
+      // The audio, riding on top of the DC.
+      g.strokeStyle = alpha(R.safe, 0.85);
+      g.lineWidth = 1.8;
+      for (const [y, inv] of [[y2, 1], [y3, -1]]) {
+        g.beginPath();
+        for (let k = 0; k <= 160; k++) {
+          const u = k / 160;
+          const x = x0 + u * (x1 - x0);
+          const off = (bad && y === y3) ? 0 : 0;
+          const v = Math.sin(u * 16 - t * 4) * 7 * inv;
+          k ? g.lineTo(x, y - v - off) : g.moveTo(x, y - v - off);
+        }
+        g.stroke();
+      }
+
+      // The receiver, and what it sees.
+      const rx = pad + 20;
+      g.strokeStyle = p.ink2;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(x0 - 40, y2 - 12); g.lineTo(x0 - 6, (y2 + y3) / 2); g.lineTo(x0 - 40, y3 + 12);
+      g.closePath();
+      g.stroke();
+      label(g, '−', x0 - 32, (y2 + y3) / 2, { color: p.ink2, size: 13, weight: 700 });
+
+      const oy = 156;
+      const ow = w - pad * 2;
+      box(g, pad, oy, ow, 54, { fill: alpha(p.ground, 0.5), stroke: p.line, r: 6 });
+      const mid = oy + 27;
+      g.strokeStyle = bad ? R.fault : R.safe;
+      g.lineWidth = 2;
+      g.beginPath();
+      for (let k = 0; k <= 200; k++) {
+        const u = k / 200;
+        const x = pad + 6 + u * (ow - 12);
+        const audio = Math.sin(u * 16 - t * 4) * 14;
+        const offset = bad ? 18 : 0;
+        k ? g.lineTo(x, mid - audio - offset) : g.moveTo(x, mid - audio - offset);
+      }
+      g.stroke();
+      line(g, pad + 6, mid, w - pad - 6, mid, { color: alpha(p.muted, 0.5), lw: 1, dash: [4, 3] });
+      label(g, bad
+        ? 'at the receiver: a large DC offset the input was never meant to see'
+        : `at the receiver: audio only. The ${on ? '48 V is common mode and subtracts away' : 'line carries no DC at all'}`,
+      pad + 10, oy + 12, {
+        color: bad ? R.fault : R.safe, size: 10.5, weight: 600, max: ow - 20,
+      });
+
+      label(g, 'Never plug or unplug with phantom on: the pins make in an unpredictable order and the transient goes into a preamp at full gain.',
+        pad, oy + 70, { color: p.muted, size: 10.5, max: ow });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Frequency response
+// ---------------------------------------------------------------------------
+
+register('freq-response', (host) => plot(host, {
+  title: 'Sweeping a box to see what it does to everything',
+  sub: 'One frequency at a time, at a fixed input level, plotted on a logarithmic axis.',
+  note: 'A filter is a straight line on logarithmic axes and a curve on linear ones, which is the entire reason responses are plotted this way. <b>The −3 dB points are where the output has fallen to about 70 per cent of the reference voltage, and a bandwidth quoted without them has told you nothing.</b>',
+  xLabel: 'log₁₀ frequency (Hz)', yLabel: 'dB',
+  xMin: 1, xMax: 4.4, yMin: -24, yMax: 6,
+  grid: true,
+  controls: (st, redraw, setNote) => {
+    st.kind = 'flat';
+    const KINDS = {
+      flat: ['Flat, as intended', 'It is doing nothing to the signal, which is usually the point. Within a decibel across the band.'],
+      top: ['Top end falling', 'Cable capacitance against source impedance, or a deliberate filter. This is the long unbalanced instrument cable from earlier in this class.'],
+      bottom: ['Bottom end falling', 'A coupling capacitor too small for the load it is driving, or a deliberate high pass to remove stage rumble.'],
+      peak: ['A peak', 'Resonance, and rarely intended. Usually a filter without enough damping, and it will ring on transients.'],
+      both: ['Falling at both ends', 'Normal for a transformer-coupled stage, and the shape most vintage equipment has.'],
+    };
+    const c = choice('Response', Object.entries(KINDS).map(([k, v]) => [k, v[0]]), {
+      value: 'flat',
+      on: (v) => { st.kind = v; setNote(`${KINDS[v][0]}. ${KINDS[v][1]} <b>Ten points from 20 Hz to 20 kHz is enough to see the shape, and it takes about ten minutes once.</b>`); redraw(); },
+    });
+    return [c.node];
+  },
+  curves: (st) => [{
+    tone: 'signal',
+    f: (lx) => {
+      const f = 10 ** lx;
+      const hp = (fc) => -10 * Math.log10(1 + (fc / f) ** 2);
+      const lp = (fc) => -10 * Math.log10(1 + (f / fc) ** 2);
+      if (st.kind === 'top') return lp(4000);
+      if (st.kind === 'bottom') return hp(300);
+      if (st.kind === 'both') return hp(40) + lp(16000);
+      if (st.kind === 'peak') return 5 / (1 + ((Math.log10(f) - 3.1) * 4) ** 2) + lp(19000);
+      return lp(30000) + hp(12);
+    },
+  }, {
+    tone: 'fault', dash: [4, 4], lw: 1.2, f: () => -3, label: '−3 dB',
+  }],
+  footer: 'Set the level once at 1 kHz and never touch it again. That is your 0 dB reference, and everything else on the plot is relative to it.',
+}));

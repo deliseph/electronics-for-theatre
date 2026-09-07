@@ -33,6 +33,25 @@ anything you love, because solder spits and flux stains.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the contradiction you brought from the two videos |
+| 25 | The idea | Clean metal, enough heat in the right place, briefly. Then strain relief, which is the actual subject |
+| 45 | Bench A | Fifty joints on scrap, inspected every tenth |
+| 15 | Break |  |
+| 30 | Bench B | Destructive testing: four bad joints, broken and examined |
+| 75 | Bench C | Build three cables: XLR3, DMX on XLR5, RJ45 to T568B |
+| 30 | Bench D | Inspect and condemn twenty cables from the store |
+| 10 | Close | Where your verdicts differed from the technician’s, and why |
+
+---
+
 ## Why this class is four hours long
 
 Because soldering is a motor skill, and motor skills are acquired by repetition under correction,
@@ -175,6 +194,53 @@ the connector undoes a surprising amount of it. Keep it under 13 mm.
 cable that "looks right" but has 3 and 6 split across two pairs will pass a continuity test and
 fail at 100 Mbit/s over any distance. A cheap cable tester that only checks continuity will call
 that cable good. This is precisely the Class 2 lesson about proving the right thing.
+
+---
+
+## Crimping, which is most of what you will actually do
+
+Soldering gets the attention. In the field, on a production, in a rack, **most terminations are
+crimped**, and a good crimp is more reliable than a good solder joint under vibration.
+
+<!--anim:crimp-quality-->
+
+A correct crimp is a **gas-tight cold weld**. The die deforms the barrel and the conductor together
+until the metal flows and there is no air path between them. It is not a squeeze that holds the
+wire mechanically; it is a joining process, and that distinction is why the tool matters more than
+the technique.
+
+**The tool is the whole subject.** A ratcheting crimper with the correct die for the terminal will
+not release until it has completed the cycle, so every crimp gets the same force. A general-purpose
+plier-type crimper applies whatever force your hand had that afternoon. The industry uses ratcheting
+tools because consistency is the property being bought, and a cheap crimper is the single worst
+false economy on the kit list.
+
+### The four kinds you will meet
+
+<!--anim:crimp-types-->
+
+| Type | Where | What goes wrong |
+| --- | --- | --- |
+| Bootlace ferrule | Stranded wire into a screw or spring terminal | Not used at all, so strands splay and one escapes |
+| Ring and spade | Bolted studs, chassis earths | Crimped over the insulation instead of the conductor |
+| Insulation-displacement (IDC) | RJ45, ribbon cable, Socapex inserts | Wrong conductor size for the slot |
+| Machined pin | Multipin connectors, Socapex, CEE | Pin not seated, so it pushes back on mating |
+
+**Bootlace ferrules are the one to internalise.** Any stranded conductor entering a screw terminal
+should be ferruled. Without one, the screw crushes and cuts strands, the strand count carrying
+current falls, resistance rises and the terminal heats. It costs a few cents and about four
+seconds, and its absence is visible in half the racks you will ever open.
+
+### Inspecting a crimp
+
+- **The wire barrel grips conductor; the insulation barrel grips insulation.** Both, separately.
+  A crimp that has caught the insulation in the wire barrel is a connection to nothing.
+- **You should see a little conductor past the barrel**, one to two millimetres. None at all means
+  the wire was short of the end; a lot means it was too long and is unsupported.
+- **The tug test.** Pull it, properly. A correct crimp on stranded wire will break the wire before
+  it releases the barrel. If it slides out, every crimp you made that day is suspect.
+- **No solder on a crimp.** Solder wicks up the strands and creates a hard point exactly where the
+  conductor needs to flex. Crimp or solder, never both.
 
 ---
 

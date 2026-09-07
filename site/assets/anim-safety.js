@@ -895,3 +895,215 @@ register('shock-response', (host) => chain(host, {
   ],
   footer: 'Electrical fire: isolate first if it is safe. CO₂ or dry powder, never water. A lithium fire supplies its own oxygen, reignites, and is for the fire service.',
 }));
+
+// ---------------------------------------------------------------------------
+// Risk assessment
+// ---------------------------------------------------------------------------
+
+register('risk-matrix', (host) => {
+  let likelihood = 3, severity = 4;
+  let control = 0;   // index into the hierarchy
+
+  const HIER = [
+    ['No control', 0, 'The hazard as found'],
+    ['Eliminate', 0.98, 'Do it another way entirely: a projection instead of a moving truck'],
+    ['Substitute', 0.8, 'Something safer doing the same job: extra-low voltage instead of mains'],
+    ['Engineering', 0.6, 'Guards, interlocks, an isolating transformer, an RCD'],
+    ['Administrative', 0.3, 'Procedures, training, signage, a permit to work'],
+    ['PPE', 0.15, 'Gloves, glasses, arc-rated clothing'],
+  ];
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Likelihood times severity, and the hierarchy that reduces it',
+    sub: 'The order of the controls is not a preference. It is what every standard uses, and PPE is last for a reason.',
+    note: '',
+  });
+
+  const score = () => likelihood * severity;
+  const residual = () => Math.max(1, Math.round(score() * (1 - HIER[control][1])));
+
+  const upd = () => {
+    const r = residual();
+    setNote(control === 0
+      ? `Untreated, this scores ${score()} out of 25. <b>The purpose of the grid is not the number: it is forcing "how likely" and "how bad" to be asked separately, because people who assess them together always underestimate the rare severe case.</b>`
+      : control >= 5
+        ? `PPE takes it to ${r}, and it does that only for the person wearing it, only if it is worn, only if it is correct, and only if it has not been damaged. <b>Everything above it protects everybody in the room whether or not they were paying attention, which is why reaching for PPE first means the effective options were skipped.</b>`
+        : `${HIER[control][0]} takes it from ${score()} to about ${r}. <b>${control <= 2 ? 'The top two remove the hazard rather than managing it, which is why they are worth more than everything below them combined.' : 'Engineering controls work on everybody in the room and do not depend on anybody remembering anything.'}</b>`);
+    cv.once();
+  };
+
+  controls.append(slider('How likely', {
+    min: 1, max: 5, step: 1, value: 3,
+    fmt: (v) => ['rare', 'unlikely', 'possible', 'likely', 'almost certain'][v - 1],
+    on: (v) => { likelihood = v; upd(); },
+  }).node);
+  controls.append(slider('How bad', {
+    min: 1, max: 5, step: 1, value: 4,
+    fmt: (v) => ['negligible', 'minor', 'serious', 'major', 'fatal'][v - 1],
+    on: (v) => { severity = v; upd(); },
+  }).node);
+  controls.append(choice('Control applied', HIER.map((x, k) => [k, x[0]]), {
+    value: 0, on: (v) => { control = +v; upd(); },
+  }).node);
+
+  challenge('Take a likely, fatal hazard down to a low residual score, using something above PPE.',
+    () => likelihood >= 4 && severity === 5 && control > 0 && control < 5 && residual() <= 6);
+
+  const cv = canvas(stage, {
+    height: 290, animated: false,
+    draw(g, w) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const cell = Math.min(30, (w - pad * 2 - 130) / 5);
+      const gx = pad + 34, gy = 34;
+
+      // The 5x5 grid.
+      for (let sv = 5; sv >= 1; sv--) {
+        for (let lk = 1; lk <= 5; lk++) {
+          const x = gx + (lk - 1) * cell;
+          const y = gy + (5 - sv) * cell;
+          const s = lk * sv;
+          const col = s >= 15 ? R.fault : s >= 8 ? R.energy : R.safe;
+          const here = lk === likelihood && sv === severity;
+          g.fillStyle = alpha(col, here ? 0.75 : 0.2);
+          g.fillRect(x, y, cell - 1, cell - 1);
+          if (here) {
+            label(g, String(s), x + cell / 2, y + cell / 2, {
+              color: p.ground, size: 11, align: 'center', weight: 700,
+            });
+          }
+        }
+      }
+      label(g, 'severity', gx - 8, gy + cell * 2.5, { color: p.muted, size: 9.5, align: 'right' });
+      label(g, 'likelihood', gx + cell * 2.5, gy + cell * 5 + 13, { color: p.muted, size: 9.5, align: 'center' });
+
+      // Before and after.
+      const rx = gx + cell * 5 + 20;
+      const cw = Math.min(112, w - rx - pad);
+      if (cw > 90) {
+        readoutChip(g, rx, gy, 'UNTREATED', `${score()} / 25`, {
+          color: score() >= 15 ? R.fault : score() >= 8 ? R.energy : R.safe, p, w: cw,
+        });
+        readoutChip(g, rx, gy + 42, 'AFTER CONTROL', `${residual()} / 25`, {
+          color: residual() >= 15 ? R.fault : residual() >= 8 ? R.energy : R.safe, p, w: cw,
+        });
+      }
+
+      // The hierarchy, as a ladder with the applied one highlighted.
+      const hy = gy + cell * 5 + 30;
+      label(g, 'The hierarchy of control', pad, hy, { color: p.ink2, size: 11.5, weight: 700 });
+      HIER.slice(1).forEach(([name, , eg], k) => {
+        const y = hy + 18 + k * 20;
+        const on = control === k + 1;
+        const barW = (w - pad * 2) * (0.95 - k * 0.14);
+        g.fillStyle = alpha(on ? R.safe : p.muted, on ? 0.28 : 0.1);
+        g.fillRect(pad, y - 8, barW, 17);
+        label(g, `${k + 1}. ${name}`, pad + 8, y, {
+          color: on ? R.safe : p.ink2, size: 10.5, weight: on ? 700 : 500, max: 120,
+        });
+        label(g, eg, pad + 128, y, {
+          color: on ? p.ink2 : p.muted, size: 10, max: barW - 136,
+        });
+      });
+      label(g, 'PPE protects one person, only if worn, only if correct. Everything above it protects the whole room.',
+        pad, hy + 18 + 5 * 20 + 8, { color: p.muted, size: 10.5, max: w - pad * 2 });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Arc flash and PPE
+// ---------------------------------------------------------------------------
+
+register('ppe-arc', (host) => compare(host, {
+  title: 'The other hazard, and why it is about energy rather than voltage',
+  sub: 'A short circuit in a distribution board releases its energy as plasma, molten metal and pressure, in milliseconds.',
+  fields: [
+    { label: 'What it is', key: 'what' },
+    { label: 'What actually controls it', key: 'control', tone: 'safe' },
+    { label: 'What it is not', key: 'not', tone: 'fault' },
+  ],
+  items: [
+    {
+      name: 'Arc flash', short: 'Arc flash', tone: 'fault',
+      line: 'A fault current arcing through air. The injury is thermal rather than electrical.',
+      what: 'Several times the surface temperature of the sun, plus a pressure wave and molten metal, over in a few milliseconds',
+      control: 'De-energise, lock off, prove dead. Nearly all incidents happen during live work that did not need to be live',
+      not: 'Not a shock hazard, and not proportional to voltage. A 400 A panel is far more dangerous than a 230 V socket',
+      note: 'It is a hazard of the energy available at the fault. <b>That is why the rules tighten as you move upstream toward the incoming supply, and why the panel matters more than the socket.</b>',
+    },
+    {
+      name: 'Live work', short: 'Live work', tone: 'fault',
+      line: 'Working on something that has not been isolated.',
+      what: 'The condition in which nearly every arc flash injury occurs',
+      control: 'A permit, a specialist, arc-rated clothing, a face shield, insulated tools, and a second person',
+      not: 'Not you, and not something "the show is in an hour" changes',
+      watch: 'If work must be live, that is a specialist with a permit. This course does not qualify you for it and no amount of time pressure creates the qualification.',
+    },
+    {
+      name: 'Everyday PPE', short: 'PPE', tone: 'safe',
+      line: 'The unexciting items people still skip.',
+      what: 'Safety glasses when cutting, drilling or soldering. Gloves for sharp chassis. Hearing protection near a generator',
+      control: 'Wearing it. That is the whole mechanism, and it is why it sits last in the hierarchy',
+      not: 'Not a substitute for any control above it, and not protection for anybody else in the room',
+    },
+    {
+      name: 'Jewellery and metal', short: 'Metal', tone: 'fault',
+      line: 'The one that catches people who have done everything else right.',
+      what: 'A bracelet, watch, ring or lanyard near a panel or a battery',
+      control: 'Take it off before you open anything. Empty your top pockets too',
+      not: 'Not a small risk. A metal bracelet across two busbars is a short circuit and a bracelet that cannot be removed',
+      note: 'A battery terminal will deliver hundreds of amps into a ring. <b>The burn is circumferential and the jewellery is welded on while it happens.</b>',
+    },
+  ],
+  footer: 'The controls are the same four you already know: de-energise, lock off, prove dead, do not work live. Everything else on this page is what happens when those four are skipped.',
+}));
+
+// ---------------------------------------------------------------------------
+// The documentation sheet
+// ---------------------------------------------------------------------------
+
+register('doc-sheet', (host) => chain(host, {
+  title: 'One side of A4, and the stranger who has to use it',
+  sub: 'Twenty per cent of the capstone mark, and the part most people lose points on.',
+  tag: 'Point', accent: 'safe',
+  stages: [
+    {
+      name: 'What it is · ratings · pinout',
+      body: 'Two sentences on what it is for. Supply range, current, maximum load, isolation. The pinout drawn, with the connector orientation shown.',
+      why: 'These are the questions asked before anybody agrees to put it on a production, and they are the easy ones to answer.',
+      note: 'Draw the pinout from the direction somebody actually looks at the connector. <b>A pinout drawn from the wrong side is worse than none, because it will be believed.</b>',
+    },
+    {
+      name: 'Power-up and loss of control',
+      body: 'What it does the moment power arrives, and what it does when the control signal stops.',
+      why: 'These two sentences are what a production manager actually reads. Ratings can be looked up from the components; failure behaviour cannot be looked up from anything.',
+      note: '“Outputs off within one loop pass if the control connector is removed.” <b>Somebody will kick that cable out during a performance, and this sentence is the difference between a known outcome and an argument.</b>',
+    },
+    {
+      name: 'Fault codes and reset',
+      body: 'What the indicator is saying, and the one deliberate physical action that clears it.',
+      why: 'The person in the building has no laptop and no time. A blink pattern and a two-second button hold are diagnosable and fixable from the wing.',
+    },
+    {
+      name: 'Known limitations',
+      body: 'Specifically. “The load sits at supply potential when off.” “There is no over-current protection.” “Duty cycle above 40 per cent overheats the solenoid.”',
+      why: 'Every device has limitations. A named one can be planned around; an unnamed one is discovered at the worst moment and becomes your reputation.',
+      note: 'This is where the marks are won and where most people lose them. <b>A limitation you have named is engineering. The same limitation undocumented is a defect.</b>',
+    },
+    {
+      name: 'Test results and a contact',
+      body: 'Numbers, dated and initialled. Not ticks. Then a name and a way to reach it.',
+      why: '“Pass” cannot be checked by anybody else. A measured isolation resistance and a calculated on-resistance can.',
+    },
+    {
+      name: 'The stranger test',
+      body: 'Somebody who has never seen the device, given only this sheet and no conversation, powers it up, triggers it, causes a fault, identifies it from the indicator, and resets it.',
+      why: 'That is the specification the sheet is written against, and it is the only test of it that means anything.',
+      note: 'Test it on somebody outside the course before you arrive. <b>Every question they ask is a point you have not written down, and it is far cheaper to find them the week before than in the peer review.</b>',
+    },
+  ],
+  footer: 'Anything they have to guess is a defect in the sheet rather than a shortcoming in them. The sheet is what goes on the production; you will not be in the building.',
+}));

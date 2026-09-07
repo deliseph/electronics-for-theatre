@@ -28,6 +28,25 @@ Everything you own from this course. This is a full build.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | The brief, and the fact that the failure behaviour is what is assessed |
+| 25 | Bench A | Design review: five minutes to another team, three questions back |
+| 55 | Bench B | Skeleton and inputs, checkpointed on the indicator alone |
+| 15 | Break |  |
+| 60 | Bench C | Output on a lamp first, then the real actuator, with current and temperature measured |
+| 40 | Bench D | Break it: the whole failure table, plus the four run tests |
+| 20 | Bench E | Handover: operate another team’s effect from their sheet, in silence |
+| 15 | Close | The notes you received, which are worth more than the marks |
+
+---
+
 ## The brief
 
 In teams of two, build a triggered effect that:
@@ -157,6 +176,37 @@ prop that resumes mid-flare.
 **The stranger test.** Somebody who has not seen it, given only your sheet, must be able to power it
 up, trigger it, cause a fault, identify the fault from the indicator, and reset it. If they cannot,
 the sheet is wrong and the sheet is what goes on the production.
+
+---
+
+## Joining the show
+
+An effect that only fires from its own button is a demonstration. An effect on a production is
+fired by whoever is running the show, from wherever they are running it, and the way you connect it
+decides who is responsible when it does not happen.
+
+<!--anim:cue-integration-->
+
+| Route in | Who holds the cue | Good for | Costs you |
+| --- | --- | --- | --- |
+| A DMX channel | The lighting operator, in their cue stack | Anything visual, anything that should follow a lighting state | An isolated receiver, and an address in somebody's patch |
+| MIDI Show Control | Whoever holds the master cue stack | Cues that must land with sound or video | A device that speaks it, and an agreed cue numbering |
+| OSC over the network | Usually the sound department, from QLab | Flexible, two way, easy to test | A network that exists, and an agreed message vocabulary |
+| A contact closure | Whoever is standing there | Anything that needs a person to judge the moment | A cable to wherever that person is |
+| Its own sensor | Nobody. The performer triggers it | Precise timing to a movement | Every false trigger in your list |
+
+**The question is not technical, it is about who is responsible.** Putting the effect in the
+lighting cue stack means the lighting operator can see it, hold it, and take it out if the scene
+changes. Putting it on a sensor with no override means nobody can stop it, which is fine for a
+flickering lamp and unacceptable for anything that moves.
+
+**Whatever you choose, provide an override.** A physical way to disable the effect that does not
+involve unplugging it, labelled, and on the documentation sheet. On the night something is wrong
+with your prop, somebody needs to be able to take it out of the show in five seconds without
+finding you.
+
+The pattern worth reaching for, from earlier in this class: **the cue arms it and the sensor fires
+it.** The operator keeps the decision about *whether*; the sensor keeps the decision about *when*.
 
 ---
 

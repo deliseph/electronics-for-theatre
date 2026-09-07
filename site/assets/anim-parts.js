@@ -1050,3 +1050,357 @@ register('rj45-order', (host) => {
   });
   upd();
 });
+
+// ---------------------------------------------------------------------------
+// Transformers
+// ---------------------------------------------------------------------------
+
+register('transformer', (host) => {
+  let np = 1900, ns = 100;
+  let feed = 'ac';
+  const Vin = 230;
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Turns in, volts out, and nothing conducting between',
+    sub: 'Change the turns ratio. Then feed it DC and watch what a transformer becomes.',
+    note: '',
+  });
+
+  const vout = () => (feed === 'dc' ? 0 : Vin * (ns / np));
+
+  const upd = () => {
+    setNote(feed === 'dc'
+      ? 'Fed DC, a transformer is a coil of wire: a short circuit with a time constant. There is no changing field, so nothing is induced in the secondary and the primary draws current until something gives. <b>This is the second most common way people destroy transformers, and it is not a subtlety.</b>'
+      : `${np} turns to ${ns} turns gives ${sig(vout())} V out. Power is conserved less the losses, so the current ratio is inverted: taking 5 A from the secondary draws about ${sig(5 * (ns / np))} A from the primary. <b>And nothing conducts across the gap, which is the strongest isolation available and why an isolating transformer is on the safety card.</b>`);
+    cv.once();
+  };
+
+  controls.append(slider('Primary turns', {
+    min: 100, max: 3000, step: 50, value: 1900, fmt: (v) => String(v),
+    on: (v) => { np = v; upd(); },
+  }).node);
+  controls.append(slider('Secondary turns', {
+    min: 10, max: 3000, step: 10, value: 100, fmt: (v) => String(v),
+    on: (v) => { ns = v; upd(); },
+  }).node);
+  controls.append(choice('Feed it', [['ac', '230 V AC'], ['dc', '230 V DC']], {
+    value: 'ac', on: (v) => { feed = v; upd(); },
+  }).node);
+
+  challenge('Set it up as a 1:1 isolating transformer.', () => feed === 'ac' && Math.abs(np - ns) < 60);
+
+  const cv = canvas(stage, {
+    height: 270,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const cx = w / 2, cy = 76;
+      const ac = feed === 'ac';
+
+      // The core.
+      box(g, cx - 22, cy - 52, 44, 104, { fill: alpha(p.muted, 0.18), stroke: p.line, r: 3 });
+      label(g, 'core', cx, cy + 64, { color: p.muted, size: 9.5, align: 'center' });
+
+      // Windings, with turn count reflected in how many loops are drawn.
+      const drawWinding = (x, turns, col, dir) => {
+        const n = Math.max(3, Math.min(9, Math.round(turns / 260)));
+        g.strokeStyle = col;
+        g.lineWidth = 2;
+        const span = 84;
+        for (let k = 0; k < n; k++) {
+          const y = cy - span / 2 + (k + 0.5) * (span / n);
+          g.beginPath();
+          g.arc(x, y, 9, -Math.PI / 2, Math.PI / 2, dir < 0);
+          g.stroke();
+        }
+        return n;
+      };
+      drawWinding(cx - 30, np, ac ? R.fault : p.muted, 1);
+      drawWinding(cx + 30, ns, ac ? R.signal : alpha(p.muted, 0.5), -1);
+      label(g, `${np} turns`, cx - 46, cy - 62, { color: R.fault, size: 10, align: 'center' });
+      label(g, `${ns} turns`, cx + 46, cy - 62, { color: ac ? R.signal : p.muted, size: 10, align: 'center' });
+
+      // The flux, which only exists on AC.
+      if (ac) {
+        const ph = Math.sin(t * 2.6);
+        for (let k = 1; k <= 3; k++) {
+          g.strokeStyle = alpha(R.energy, (0.15 + Math.abs(ph) * 0.4) / k);
+          g.lineWidth = 2;
+          g.beginPath();
+          g.ellipse(cx, cy, 12 + k * 5, 46 + k * 5, 0, 0, Math.PI * 2);
+          g.stroke();
+        }
+        label(g, 'changing flux', cx, cy, { color: R.energy, size: 9, align: 'center' });
+      } else {
+        label(g, 'no changing flux', cx, cy, { color: R.fault, size: 9.5, align: 'center', weight: 700, max: 90 });
+      }
+
+      // Supply and load.
+      supplySym(g, pad + 26, cy, 26, ac ? R.fault : R.energy, 2);
+      label(g, ac ? '230 V AC' : '230 V DC', pad + 26, cy + 26, {
+        color: ac ? R.fault : R.energy, size: 10, align: 'center',
+      });
+      line(g, pad + 26, cy - 13, pad + 26, cy - 44, { color: p.muted, lw: 1.5 });
+      line(g, pad + 26, cy - 44, cx - 39, cy - 44, { color: p.muted, lw: 1.5 });
+      line(g, cx - 39, cy - 44, cx - 39, cy - 42, { color: p.muted, lw: 1.5 });
+      line(g, pad + 26, cy + 13, pad + 26, cy + 44, { color: p.muted, lw: 1.5 });
+      line(g, pad + 26, cy + 44, cx - 39, cy + 44, { color: p.muted, lw: 1.5 });
+
+      const lx = w - pad - 46;
+      box(g, lx, cy - 18, 44, 36, {
+        fill: ac ? alpha(R.energy, 0.2) : p.raised, stroke: p.line, r: 5,
+      });
+      label(g, 'load', lx + 22, cy, { color: ac ? R.energy : p.muted, size: 10, align: 'center' });
+      line(g, cx + 39, cy - 44, lx + 22, cy - 44, { color: p.muted, lw: 1.5 });
+      line(g, lx + 22, cy - 44, lx + 22, cy - 18, { color: p.muted, lw: 1.5 });
+      line(g, cx + 39, cy + 44, lx + 22, cy + 44, { color: p.muted, lw: 1.5 });
+      line(g, lx + 22, cy + 44, lx + 22, cy + 18, { color: p.muted, lw: 1.5 });
+
+      // The isolation, which is the part people forget is there.
+      label(g, 'no conductive path across the core', cx, cy + 82, {
+        color: R.safe, size: 10, align: 'center', weight: 600, max: w - 40,
+      });
+
+      const wy = 178;
+      label(g, `V_sec ÷ V_pri = N_sec ÷ N_pri`, pad, wy, { color: p.muted, size: 11, mono: true });
+      label(g, `V_sec = 230 × ${ns} ÷ ${np} = ${ac ? `${sig(vout())} V` : '0 V — nothing is induced'}`, pad, wy + 18, {
+        color: ac ? p.ink : R.fault, size: 11.5, mono: true, weight: 700, max: w - pad * 2,
+      });
+      label(g, ac
+        ? `Current ratio is inverted: ${sig(5)} A out draws about ${sig(5 * ns / np)} A in`
+        : 'The primary is now just a coil of copper across the supply',
+      pad, wy + 38, { color: p.muted, size: 11, mono: true, max: w - pad * 2 });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Protective devices
+// ---------------------------------------------------------------------------
+
+register('fuse-types', (host) => compare(host, {
+  title: 'Six ways to open a circuit, and when each is wrong',
+  sub: 'Two numbers and a curve: what it carries forever, what opens it fast, and how long it takes in between.',
+  fields: [
+    { label: 'Opens on', key: 'opens' },
+    { label: 'Resets', key: 'resets' },
+    { label: 'Where it belongs', key: 'where' },
+  ],
+  items: [
+    {
+      name: 'Fast-blow fuse (F)', short: 'Fast', tone: 'signal',
+      line: 'Opens quickly at modest overload. The one in your meter’s current range.',
+      opens: 'Low overload, quickly', resets: 'No, it is consumed',
+      where: 'Electronics, semiconductor protection, meter current ranges',
+      watch: 'Fitted where a slow-blow belongs, it opens every time the equipment is switched on. People then fit a larger one to stop the nuisance, which is the dangerous direction.',
+    },
+    {
+      name: 'Slow-blow fuse (T)', short: 'Slow', tone: 'safe',
+      line: 'Tolerates an inrush, then opens on a sustained overload.',
+      opens: 'Sustained overload; ignores brief peaks', resets: 'No',
+      where: 'Anything with a transformer, a motor or a switch-mode input',
+      note: 'The T marking is the whole message. <b>A device with an inrush needs a fuse that tolerates it, and "the same rating" is not the same fuse.</b>',
+    },
+    {
+      name: 'Type B breaker', short: 'Type B', tone: 'safe',
+      line: 'Magnetic trip at three to five times rating, plus a thermal element for slow overloads.',
+      opens: '3–5 × rating, in milliseconds', resets: 'Yes',
+      where: 'General socket and lighting circuits',
+      note: 'The magnetic trip is what makes protective earthing work: the earth path has to draw enough current to reach that threshold instantly. <b>That is the whole mechanism from Class 1.</b>',
+    },
+    {
+      name: 'Type C breaker', short: 'Type C', tone: 'energy',
+      line: 'The same, with the magnetic trip moved up to five to ten times rating.',
+      opens: '5–10 × rating', resets: 'Yes',
+      where: 'Circuits with real inrush: motor loads, racks of LED fixtures',
+      watch: 'Moving from B to C to stop nuisance tripping also means a fault has to get larger before anything notices. It is a considered trade, not a fix.',
+    },
+    {
+      name: 'PTC, “resettable fuse”', short: 'PTC', tone: 'fault',
+      line: 'A polymer that heats under fault current and becomes high resistance.',
+      opens: 'Gradually, as it self-heats', resets: 'Yes, on cooling — automatically',
+      where: 'Board-level protection on low voltage circuits',
+      watch: 'It is not a fuse. A fault behind a PTC sits there cycling — on, hot, off, cool, on — rather than announcing itself. It protects the board and hides the problem.',
+    },
+    {
+      name: 'Electronic current limit', short: 'Limit', tone: 'safe',
+      line: 'The supply itself refuses to deliver more than a set current.',
+      opens: 'Instantly, and it holds rather than trips', resets: 'Yes, and often automatically',
+      where: 'Bench supplies, good LED drivers, decent USB ports',
+      note: 'A bench supply with the current limit set to what your circuit should draw is the cheapest insurance in the room. <b>Set it before you power a new board, not after.</b>',
+    },
+  ],
+  footer: 'Fuses and breakers protect the cable from fire. None of them protects a person: that is an RCD, isolation or double insulation, and it is a different mechanism entirely.',
+}));
+
+// ---------------------------------------------------------------------------
+// Crimping
+// ---------------------------------------------------------------------------
+
+register('crimp-quality', (host) => {
+  let tool = 'ratchet';
+  let position = 'correct';
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'A crimp is a cold weld, not a squeeze',
+    sub: 'Cross-section through the barrel. Change the tool and where the wire sits.',
+    note: '',
+  });
+
+  const verdict = () => {
+    if (position === 'insulation') return ['fail', 'A connection to the insulation, which is a connection to nothing'];
+    if (position === 'short') return ['fail', 'Too little conductor in the barrel: it grips almost nothing'];
+    if (tool === 'plier') return ['weak', 'Deformed unevenly, with air paths left between the strands'];
+    return ['good', 'Gas-tight: the metal has flowed and there is no air path left'];
+  };
+
+  const upd = () => {
+    const [k, why] = verdict();
+    setNote(k === 'good'
+      ? 'A ratcheting tool with the correct die will not release until it has completed the cycle, so every crimp gets the same force. The metal flows and there is no air path between conductor and barrel. <b>That consistency is the property you are buying, and it is why a cheap crimper is the worst false economy on the kit list.</b>'
+      : k === 'weak'
+        ? 'A plier-type crimper applies whatever force your hand had that afternoon. The barrel is deformed unevenly and air paths remain, so the joint oxidises from the inside and its resistance climbs over months. <b>It passes every test you do today and fails in the second year.</b>'
+        : `${why}. <b>The tug test finds this in two seconds: a correct crimp on stranded wire breaks the wire before it releases the barrel, and if it slides out then every crimp you made that day is suspect.</b>`);
+    cv.once();
+  };
+
+  controls.append(choice('Tool', [['ratchet', 'Ratcheting, correct die'], ['plier', 'General-purpose pliers']], {
+    value: 'ratchet', on: (v) => { tool = v; upd(); },
+  }).node);
+  controls.append(choice('Wire position', [
+    ['correct', 'Correct'], ['insulation', 'Insulation in the wire barrel'], ['short', 'Wire too short'],
+  ], { value: 'correct', on: (v) => { position = v; upd(); } }).node);
+
+  challenge('Make a crimp that would pass a continuity test and fail in eighteen months.',
+    () => tool === 'plier' && position === 'correct');
+
+  const cv = canvas(stage, {
+    height: 260, animated: false,
+    draw(g, w) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const [k] = verdict();
+      const tone = k === 'good' ? R.safe : k === 'weak' ? R.energy : R.fault;
+
+      // Cross-section: barrel with strands inside.
+      const cx = pad + 92, cy = 74;
+      const good = k === 'good';
+      g.strokeStyle = tone;
+      g.lineWidth = 3;
+      g.beginPath();
+      if (good) {
+        // A properly formed B-crimp: barrel folded in on itself.
+        g.moveTo(cx - 34, cy + 22);
+        g.quadraticCurveTo(cx - 38, cy - 14, cx, cy - 4);
+        g.quadraticCurveTo(cx + 38, cy - 14, cx + 34, cy + 22);
+        g.quadraticCurveTo(cx, cy + 32, cx - 34, cy + 22);
+      } else {
+        g.ellipse(cx, cy + 6, 36, 22, 0, 0, Math.PI * 2);
+      }
+      g.stroke();
+
+      // Strands, packed tight when the crimp is right and loose when not.
+      const strands = position === 'short' ? 4 : 14;
+      for (let i = 0; i < strands; i++) {
+        const ang = (i / strands) * Math.PI * 2;
+        const rr = good ? 11 : 15;
+        const jitter = good ? 0 : (Math.sin(i * 4.1) * 5);
+        const sx = cx + Math.cos(ang) * (rr + jitter) * (i % 3 === 0 ? 0.5 : 1);
+        const sy = cy + 6 + Math.sin(ang) * (rr + jitter) * 0.6 * (i % 3 === 0 ? 0.5 : 1);
+        g.fillStyle = position === 'insulation' ? alpha(p.muted, 0.6) : '#c98a3a';
+        g.beginPath();
+        g.arc(sx, sy, 3.4, 0, Math.PI * 2);
+        g.fill();
+      }
+      if (!good) {
+        label(g, position === 'insulation' ? 'insulation, not copper' : 'air paths between the strands',
+          cx, cy + 44, { color: R.fault, size: 9.5, align: 'center', max: 170 });
+      } else {
+        label(g, 'metal has flowed: gas-tight', cx, cy + 44, {
+          color: R.safe, size: 9.5, align: 'center', max: 170,
+        });
+      }
+      label(g, 'cross-section through the barrel', cx, cy - 40, {
+        color: p.muted, size: 9.5, align: 'center', max: 180,
+      });
+
+      const rx = Math.max(cx + 70, w - 150);
+      if (w - rx > 110) {
+        const cw = Math.min(138, w - rx - 8);
+        readoutChip(g, rx, 28, 'JOINT', k === 'good' ? 'gas-tight' : k === 'weak' ? 'oxidises inside' : 'fails', {
+          color: tone, p, w: cw,
+        });
+        readoutChip(g, rx, 70, 'TUG TEST', k === 'good' ? 'wire breaks' : k === 'weak' ? 'holds, for now' : 'pulls out', {
+          color: tone, p, w: cw,
+        });
+        readoutChip(g, rx, 112, 'FAILS', k === 'good' ? 'it does not' : k === 'weak' ? 'in year two' : 'immediately', {
+          color: tone, p, w: cw,
+        });
+      }
+
+      const ty = 172;
+      const rows = [
+        ['Wire barrel grips conductor', 'insulation barrel grips insulation. Both, separately'],
+        ['A little conductor past the barrel', 'one to two millimetres. None means it was short'],
+        ['The tug test', 'a correct crimp breaks the wire before it releases'],
+        ['Never solder a crimp', 'solder wicks up the strands and makes a hard point where it flexes'],
+      ];
+      rows.forEach(([a, b], i) => {
+        const y = ty + i * 18;
+        label(g, a, pad, y, { color: p.ink2, size: 10.5, weight: 600, max: w * 0.4 });
+        label(g, b, pad + Math.max(w * 0.42, 165), y, {
+          color: p.muted, size: 10.5, max: w - pad - Math.max(w * 0.42, 165),
+        });
+      });
+    },
+  });
+  upd();
+});
+
+register('crimp-types', (host) => compare(host, {
+  title: 'The four you will actually meet',
+  sub: 'Most terminations on a production are crimped, and each kind fails in its own way.',
+  fields: [
+    { label: 'Where', key: 'where' },
+    { label: 'Tool', key: 'tool' },
+    { label: 'What goes wrong', key: 'wrong', tone: 'fault' },
+  ],
+  items: [
+    {
+      name: 'Bootlace ferrule', short: 'Ferrule', tone: 'safe',
+      line: 'A tube crimped onto stranded wire before it enters a screw or spring terminal.',
+      where: 'Every stranded conductor entering a terminal block, without exception',
+      tool: 'Square or hexagonal ratcheting crimper, sized to the ferrule',
+      wrong: 'Not being used at all, so the screw crushes and cuts strands. The strand count carrying current falls, resistance rises, the terminal heats',
+      note: 'A few cents and about four seconds. <b>Its absence is visible in half the racks you will ever open, and it is the most common cause of a warm terminal.</b>',
+    },
+    {
+      name: 'Ring and spade', short: 'Ring', tone: 'signal',
+      line: 'A flat tongue crimped to the wire and bolted to a stud.',
+      where: 'Chassis earths, busbars, battery terminals, anything bolted',
+      tool: 'Ratcheting crimper with the die for insulated or uninsulated terminals',
+      wrong: 'Crimped over the insulation instead of the conductor, which is a connection to nothing that looks perfect from outside',
+      watch: 'A ring terminal cannot come off a stud if the nut loosens; a spade can. On anything that vibrates, or anything carrying an earth, use a ring.',
+    },
+    {
+      name: 'Insulation displacement', short: 'IDC', tone: 'energy',
+      line: 'A slot with sharp edges that cuts through the insulation as the conductor is pushed in.',
+      where: 'RJ45 plugs, ribbon cable, Socapex inserts, punch-down blocks',
+      tool: 'The connector’s own crimp tool, or a punch-down tool',
+      wrong: 'Wrong conductor size for the slot, so it either does not cut through or it severs the conductor',
+      note: 'It is the fastest termination there is, which is why it dominates network cabling. <b>It is also unforgiving about conductor diameter, which is why solid-core and stranded need different plugs.</b>',
+    },
+    {
+      name: 'Machined pin', short: 'Pin', tone: 'fault',
+      line: 'A precision pin or socket crimped to the wire, then inserted into a connector shell.',
+      where: 'Multipin connectors, Socapex, CEE, aviation-style circulars',
+      tool: 'A four-indent crimper and the correct insertion and extraction tools',
+      wrong: 'The pin not being pushed home until the retention clip latches, so it pushes back when the connector is mated',
+      watch: 'A pushed-back pin makes intermittent contact under load, which produces heat in a connector carrying 16 A. Tug every pin backwards after inserting it.',
+    },
+  ],
+  footer: 'The ratcheting tool is the whole subject: it will not release until the cycle is complete, so every crimp gets the same force. Consistency is the property being bought.',
+}));

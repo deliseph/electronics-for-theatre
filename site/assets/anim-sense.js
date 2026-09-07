@@ -928,3 +928,247 @@ register('run-testing', (host) => compare(host, {
   ],
   footer: 'Safe and reliable are separate requirements. Failing safe means nobody is hurt; it still means the effect did not happen, and a production needs to know how likely that is.',
 }));
+
+// ---------------------------------------------------------------------------
+// The H-bridge
+// ---------------------------------------------------------------------------
+
+register('h-bridge', (host) => {
+  let state = 'forward';   // forward | reverse | coast | brake | shoot
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Four switches, and the two ways it goes wrong',
+    sub: 'Close one diagonal and the motor turns. Close one side and you have a short circuit.',
+    note: '',
+  });
+
+  const upd = () => {
+    setNote({
+      forward: 'Top-left and bottom-right closed: current flows left to right through the motor and it turns one way. <b>That is the whole idea, and everything else in this figure is about the two ways it goes wrong.</b>',
+      reverse: 'The other diagonal, so current flows the other way and so does the motor. <b>Nothing about the motor changed; only which pair of switches is closed.</b>',
+      coast: 'All four open. The motor is disconnected and keeps turning on its own momentum until friction stops it. <b>A scenic piece coasting to a stop and one braking to a stop look different from the auditorium, and which you want is a design decision rather than a default.</b>',
+      brake: 'Both bottom switches closed, so the motor is shorted to itself. Its own generated voltage drives a current that opposes the rotation and it stops sharply. <b>The motor is a generator whenever it is turning, and this is that fact used deliberately.</b>',
+      shoot: 'Both switches on the same side closed: a short circuit across the supply through two transistors, limited only by their on-resistance. <b>This is shoot-through, it destroys both devices in microseconds, and preventing it is most of what you are paying a driver chip for.</b>',
+    }[state]);
+    cv.once();
+  };
+
+  controls.append(choice('Switches', [
+    ['forward', 'Forward'], ['reverse', 'Reverse'], ['coast', 'All open (coast)'],
+    ['brake', 'Both low (brake)'], ['shoot', 'Both on one side'],
+  ], { value: 'forward', on: (v) => { state = v; upd(); } }).node);
+
+  challenge('Find the state that destroys two transistors in microseconds.', () => state === 'shoot');
+
+  const cv = canvas(stage, {
+    height: 280,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const cx = Math.min(w * 0.42, 190), top = 34, bot = 150;
+      const left = cx - 70, right = cx + 70;
+      const bad = state === 'shoot';
+
+      // Which of the four are closed.
+      const on = {
+        tl: state === 'forward' || state === 'shoot',
+        tr: state === 'reverse',
+        bl: state === 'reverse' || state === 'brake' || state === 'shoot',
+        br: state === 'forward' || state === 'brake',
+      };
+
+      // The rails.
+      line(g, left - 26, top, right + 26, top, { color: R.energy, lw: 2.5 });
+      line(g, left - 26, bot, right + 26, bot, { color: p.ink2, lw: 2.5 });
+      label(g, '+V', left - 32, top, { color: R.energy, size: 10, align: 'right', weight: 700 });
+      groundSym(g, left - 26, bot + 4, p.muted);
+
+      // The four switches.
+      const sw = (x, y, closed, key) => {
+        const hot = bad && (key === 'tl' || key === 'bl');
+        g.fillStyle = p.surface;
+        g.fillRect(x - 14, y - 12, 28, 24);
+        box(g, x - 14, y - 12, 28, 24, {
+          fill: closed ? alpha(hot ? R.fault : R.safe, 0.28) : p.raised,
+          stroke: hot ? R.fault : closed ? R.safe : p.line, r: 4, lw: hot ? 2 : 1,
+        });
+        label(g, key.toUpperCase(), x, y, {
+          color: hot ? R.fault : closed ? R.safe : p.muted, size: 9.5, align: 'center', weight: 700,
+        });
+      };
+      line(g, left, top, left, bot, { color: p.muted, lw: 1.5 });
+      line(g, right, top, right, bot, { color: p.muted, lw: 1.5 });
+      sw(left, top + 34, on.tl, 'tl');
+      sw(right, top + 34, on.tr, 'tr');
+      sw(left, bot - 34, on.bl, 'bl');
+      sw(right, bot - 34, on.br, 'br');
+
+      // The motor, across the middle.
+      const my = (top + bot) / 2;
+      line(g, left, my, cx - 20, my, { color: p.muted, lw: 2 });
+      line(g, cx + 20, my, right, my, { color: p.muted, lw: 2 });
+      g.strokeStyle = p.ink2;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(cx, my, 20, 0, Math.PI * 2);
+      g.stroke();
+      const spin = state === 'forward' ? 1 : state === 'reverse' ? -1 : state === 'coast' ? 0.35 : 0;
+      if (spin !== 0) {
+        const a = t * 3 * spin;
+        line(g, cx + Math.cos(a) * 14, my + Math.sin(a) * 14, cx - Math.cos(a) * 14, my - Math.sin(a) * 14,
+          { color: R.energy, lw: 2.5 });
+      }
+      label(g, 'M', cx, my, { color: p.muted, size: 11, align: 'center', weight: 700 });
+      label(g, state === 'coast' ? 'coasting' : state === 'brake' ? 'braked' : spin ? 'driven' : 'stopped',
+        cx, my + 34, { color: p.muted, size: 9.5, align: 'center' });
+
+      // The current path.
+      if (!bad && (state === 'forward' || state === 'reverse' || state === 'brake')) {
+        const fwd = state === 'forward';
+        for (let k = 0; k < 5; k++) {
+          const u = ((t * 0.8 + k / 5) % 1);
+          g.fillStyle = R.energy;
+          g.beginPath();
+          const x = state === 'brake'
+            ? left + u * (right - left)
+            : (fwd ? left + u * (right - left) : right - u * (right - left));
+          g.arc(x, my, 3, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+      if (bad) {
+        const flash = 0.5 + 0.5 * Math.sin(t * 16);
+        g.fillStyle = alpha(R.fault, 0.2 + flash * 0.4);
+        g.fillRect(left - 18, top, 36, bot - top);
+        label(g, 'SHOOT-THROUGH', left, bot + 22, {
+          color: R.fault, size: 11, align: 'center', weight: 700, max: 160,
+        });
+      }
+
+      // The readouts.
+      const rx = Math.max(right + 46, w - 150);
+      if (w - rx > 110) {
+        const cw = Math.min(138, w - rx - pad);
+        readoutChip(g, rx, top, 'MOTOR', state === 'forward' ? 'turning one way'
+          : state === 'reverse' ? 'turning the other' : state === 'coast' ? 'coasting'
+            : state === 'brake' ? 'stopping sharply' : 'irrelevant', {
+          color: bad ? R.fault : R.safe, p, w: cw,
+        });
+        readoutChip(g, rx, top + 42, 'SUPPLY CURRENT', bad ? 'unlimited' : state === 'coast' ? 'none' : 'motor current', {
+          color: bad ? R.fault : R.safe, p, w: cw,
+        });
+        readoutChip(g, rx, top + 84, 'DEVICES', bad ? 'destroyed in µs' : 'fine', {
+          color: bad ? R.fault : R.safe, p, w: cw,
+        });
+      }
+
+      const ty = bot + 46;
+      label(g, 'A real driver chip inserts a dead time of a few hundred nanoseconds during the changeover, where both switches on a side are off.',
+        pad, ty, { color: p.ink2, size: 11, max: w - pad * 2 });
+      label(g, 'That is most of what you are paying for, and it is why you do not build one from four MOSFETs on breadboard.',
+        pad, ty + 20, { color: p.muted, size: 10.5, max: w - pad * 2 });
+      labelWrap(g, 'Decelerating scenery pushes current back into the driver. On a large load that raises the supply rail until something fails, which is why serious motion control has a braking resistor.',
+        pad, ty + 48, { color: p.muted, size: 10.5, max: w - pad * 2, maxLines: 2 });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Load cells and proximity
+// ---------------------------------------------------------------------------
+
+register('loadcell', (host) => compare(host, {
+  title: 'Measuring the condition rather than a proxy for it',
+  sub: 'Two sensors that answer questions a switch cannot.',
+  fields: [
+    { label: 'What it measures', key: 'measures' },
+    { label: 'What it needs', key: 'needs' },
+    { label: 'What it buys you in a theatre', key: 'buys', tone: 'safe' },
+  ],
+  items: [
+    {
+      name: 'Load cell', short: 'Load cell', tone: 'signal',
+      line: 'A metal element with strain gauges bonded to it, wired as a bridge.',
+      measures: 'Force, by the fraction of a per cent the resistances change as the metal deforms',
+      needs: 'A dedicated amplifier such as an HX711: a few millivolts on top of a couple of volts of common mode is not something an ordinary ADC can read',
+      buys: 'What a flown piece actually weighs, whether a counterweight set is balanced, and whether the thing that should be resting on the deck is resting on the deck',
+      note: 'That last one is a genuinely good interlock. <b>It measures the condition itself rather than a proxy for it, which is the difference between "the cue was sent" and "the thing actually moved".</b>',
+    },
+    {
+      name: 'Inductive proximity', short: 'Proximity', tone: 'safe',
+      line: 'Detects metal at a few millimetres, without contact and without a magnet.',
+      measures: 'The presence of metal, by the way it damps an oscillator',
+      needs: 'Nothing beyond a supply and an input. Most are three-wire and output a clean digital level',
+      buys: 'Position sensing that dust, paint and stage haze do not affect, and that cannot be defeated with a magnet',
+      note: 'A reed switch is defeated by a magnet and an optical sensor by haze. <b>A proximity sensor mostly cannot be, which is why they appear on machinery rather than on props.</b>',
+    },
+    {
+      name: 'The bridge, in general', short: 'Bridge', tone: 'energy',
+      line: 'Four resistances in a diamond, with the output taken as the difference across the middle.',
+      measures: 'Very small changes, by cancelling everything that affects all four equally',
+      needs: 'A stable excitation voltage, and a differential amplifier at the other end',
+      buys: 'Temperature stability for free: a change that affects all four arms equally produces no output at all',
+      watch: 'It is the same common-mode rejection idea as a balanced audio line, applied to a resistance rather than a signal. Class 7 and this are the same trick twice.',
+    },
+  ],
+  footer: 'A switch tells you something reached a point. These tell you what is actually true, which is a different and usually better question.',
+}));
+
+// ---------------------------------------------------------------------------
+// Joining the show
+// ---------------------------------------------------------------------------
+
+register('cue-integration', (host) => compare(host, {
+  title: 'Who is holding the cue',
+  sub: 'The question is not technical. It is about who is responsible when it does not happen.',
+  fields: [
+    { label: 'Who holds it', key: 'who' },
+    { label: 'Good for', key: 'good' },
+    { label: 'Costs you', key: 'costs', tone: 'fault' },
+  ],
+  items: [
+    {
+      name: 'A DMX channel', short: 'DMX', tone: 'energy',
+      line: 'The effect is a fixture in somebody’s patch, in their cue stack.',
+      who: 'The lighting operator',
+      good: 'Anything visual, and anything that should follow a lighting state',
+      costs: 'An isolated receiver in your prop, and an address in somebody else’s patch',
+      note: 'The operator can see it, hold it, and take it out if the scene changes. <b>That visibility is worth more than the convenience of any other route on this list.</b>',
+    },
+    {
+      name: 'MIDI Show Control', short: 'MSC', tone: 'signal',
+      line: 'Cue commands passed between departments’ cue stacks.',
+      who: 'Whoever holds the master stack, usually sound or stage management',
+      good: 'Cues that must land with sound or video rather than with light',
+      costs: 'A device that speaks it, and an agreed cue numbering that survives the rehearsal process',
+      watch: 'MSC is an event protocol. A missed message stays missed and the show is now in the wrong state, which is why the link deserves more reliability than the DMX beside it, not less.',
+    },
+    {
+      name: 'OSC over the network', short: 'OSC', tone: 'signal',
+      line: 'Named messages, usually from QLab, over the show network.',
+      who: 'Usually the sound department',
+      good: 'Flexible, two way, and easy to test from a laptop before you are in the venue',
+      costs: 'A network that exists and is separated properly, and an agreed message vocabulary',
+      note: 'OSC defines an envelope, not a vocabulary. <b>Two systems both speaking OSC do not necessarily understand each other, so write the message list down and give it to whoever is sending.</b>',
+    },
+    {
+      name: 'A contact closure', short: 'Contact', tone: 'safe',
+      line: 'A button, on a cable, in somebody’s hand.',
+      who: 'Whoever is standing there',
+      good: 'Anything that needs a person to judge the moment, and anything that must work when the network does not',
+      costs: 'A cable to wherever that person is, and a person',
+      note: 'Unfashionable and extremely reliable. <b>For a single effect in a small show it is often the right answer, and it fails in ways everybody understands.</b>',
+    },
+    {
+      name: 'Its own sensor', short: 'Sensor', tone: 'fault',
+      line: 'The performer triggers it by being where they are.',
+      who: 'Nobody',
+      good: 'Precise timing to a movement, which no operator can match',
+      costs: 'Every false trigger on your list, and nobody able to stop it',
+      watch: 'Fine for a flickering lamp. Unacceptable for anything that moves, because there is no override and no human judgement in the loop.',
+    },
+  ],
+  footer: 'Whatever you choose, provide an override: a labelled physical way to take the effect out of the show in five seconds, without unplugging it and without finding you.',
+}));

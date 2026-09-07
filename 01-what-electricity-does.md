@@ -34,6 +34,25 @@ act of writing a number down is half of what makes you check it.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz zero, and one sentence on what the four hours are for |
+| 50 | The idea | Why a technical director needs this, and the four quantities. Voltage is a difference, current does the work and the damage, resistance is where the heat appears |
+| 15 | Break |  |
+| 30 | The idea | The three formulae, series against parallel, AC against DC, and where the current actually goes |
+| 45 | Bench A | Prove the three formulae: predict, measure, record the gap |
+| 30 | Bench B | The lamp that changes its mind, and what its cold resistance implies |
+| 45 | Bench C | Series and parallel by measurement, including a deliberately loose terminal |
+| 15 | Close | What you measured, what surprised you, and what to bring to Class 2 |
+
+---
+
 ## Why a technical director needs this
 
 You will spend your career signing off other people's electrical work. Not doing it, most of the
@@ -243,6 +262,38 @@ That last sentence is the whole of protective earthing. An earth conductor is no
 
 This is also why a missing earth is so dangerous and so invisible: everything works perfectly until
 the day there is a fault, and then the metalwork is live and nothing trips.
+
+---
+
+## What it costs, and what it needs
+
+Power is what a thing draws at any instant. **Energy** is power multiplied by time, and it is what
+the meter on the building charges for and what a battery holds.
+
+<!--anim:energy-cost-->
+
+```
+Energy in kilowatt-hours = power in kilowatts × hours
+```
+
+A 500 W lamp for a three hour show is `0.5 × 3 = 1.5 kWh`. At a commercial tariff of roughly
+HK$1.30 per unit that is about two dollars, which is nothing. A hundred of them for a four week run
+is a real number, and it is the number that made the industry switch to LED far faster than any
+argument about colour quality.
+
+Three places this arithmetic decides something:
+
+**Generator hire.** Priced on kVA, not kW, because a generator has to supply the current whether or
+not the load uses it productively. Divide your total watts by the power factor to get kVA, then add
+headroom for inrush and for the fact that nobody's load schedule was ever complete.
+
+**Battery-powered props.** A battery is rated in amp-hours or watt-hours. A prop drawing 200 mA
+from a 2000 mAh pack runs for about ten hours in theory and rather less in practice, and "rather
+less" is why you measure it rather than calculating it.
+
+**Heat in a room.** Every watt of electrical power in a closed room becomes a watt of heat. A
+dimmer rack dissipating 2 kW is a 2 kW heater, and that is a conversation with whoever sized the
+air conditioning rather than an electrical problem.
 
 ---
 

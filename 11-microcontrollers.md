@@ -29,6 +29,27 @@ minutes of every class of this kind), a laptop with the toolchain working, bread
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and your written guess about what delay() does to the chip |
+| 45 | The idea | What a microcontroller actually is, pins and the third state, and the loop |
+| 15 | Break |  |
+| 40 | The idea | The ADC and why resolution is not accuracy, PWM, and switch bounce |
+| 20 | Bench A | Everybody blinks: a checkpoint, not a lesson |
+| 30 | Bench B | Prove the pin limits, including the relay coil on a scope |
+| 25 | Bench C | Floating inputs, and the button that presses itself |
+| 20 | Bench D | Bounce, captured single-shot, and counted |
+| 25 | Bench E | delay() against millis(), with the response time measured both ways |
+| 10 | Close | The two numbers you measured, and what their ratio means |
+
+---
+
 ## What a microcontroller actually is
 
 Not a computer. A computer runs an operating system, schedules many tasks, and has an
@@ -236,6 +257,78 @@ Debouncing, in order of how much you should like them:
 For anything that must not double-fire — a cue trigger, a pyro arm, a scene change — use hardware
 debouncing *and* software debouncing. A double-fired cue is a show problem, and the cost of both is
 two components.
+
+---
+
+## Interrupts: the thing that cannot wait
+
+Everything so far polls: the loop comes round and asks. That is right for almost everything and
+wrong for a few things, and knowing which is which is the point of this section.
+
+<!--anim:interrupts-->
+
+An interrupt is a hardware arrangement where a pin changing state stops whatever the processor was
+doing, runs a short function, and returns. The main loop does not have to be looking.
+
+Use one when the event is **short, rare and cannot be missed**: an encoder pulse at speed, a
+zero-crossing detector, an emergency input. Do not use one for a button, because a poll every
+millisecond will never miss a human finger and it is far easier to reason about.
+
+The rules, and they are strict:
+
+1. **Keep it short.** Set a flag, store a value, return. No delays, no printing, no long
+   arithmetic. Everything else is blocked while it runs.
+2. **Mark shared variables `volatile`.** The compiler otherwise assumes nothing changes them behind
+   its back, caches them in a register, and your main loop reads a stale value forever. This bug is
+   invisible, intermittent, and depends on optimisation level.
+3. **A multi-byte variable shared with an interrupt needs care.** The main loop can read half of a
+   32-bit value, be interrupted, and read the other half from a different moment. The result is a
+   number that was never true.
+4. **`millis()` usually stops working inside one**, because it is itself driven by an interrupt.
+
+---
+
+## Powering a microcontroller properly
+
+<!--anim:mcu-power-->
+
+Most prop faults that look like software are power. Four things worth doing every time:
+
+**Decouple every chip.** A 100 nF ceramic between the supply pin and ground, physically next to the
+chip, supplies the current spike each switching edge demands. Without it the local rail sags for
+nanoseconds and the chip does something undefined. This is the single most common cause of a board
+that works on the bench and resets in a rack.
+
+**Bulk capacitance at the supply entry.** 100 µF or more, to hold the rail up through the slow
+demands: a servo starting, a relay pulling in.
+
+**Do not power a motor from the microcontroller's regulator.** The board's onboard regulator can
+supply tens of milliamps beyond the chip. A servo peaks at over an amp. Give the actuator its own
+supply and join only the grounds.
+
+**Join the grounds, once, at one point.** Two supplies with separate grounds and a signal between
+them is the Class 7 ground loop in miniature, and here it shows up as random resets rather than as
+hum.
+
+---
+
+## Talking to other chips
+
+<!--anim:i2c-spi-->
+
+Three buses cover almost everything you will connect, and choosing between them is usually decided
+by what the sensor you want happens to speak.
+
+| | Wires | Speed | Devices | Where |
+| --- | --- | --- | --- | --- |
+| UART | 2, plus ground | Low to moderate | One, point to point | DMX, GPS, modules, debugging |
+| I²C | 2, shared | 100 to 400 kHz | Many, each with an address | Sensors, displays, real-time clocks |
+| SPI | 4, shared plus one select each | Fast, megahertz | Many, one select line each | SD cards, displays, LED drivers |
+
+**I²C is the one that catches people**, in two ways. It needs pull-up resistors on both lines,
+usually 4.7 kΩ, and exactly one set of them for the whole bus, not one set per device. And two
+devices with the same fixed address cannot share a bus, which is why sensor breakout boards have an
+address-select jumper that everybody discovers only after buying the second one.
 
 ---
 

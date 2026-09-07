@@ -28,6 +28,26 @@ Meter, notebook, your XLR cable from Class 4, and headphones you trust.
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and what you heard when you unplugged the charger |
+| 45 | The idea | The level ladder, decibels without the mysticism, and impedance bridging rather than matching |
+| 15 | Break |  |
+| 30 | The idea | Balanced lines, where the cancellation happens, and the ground loop as a circuit |
+| 30 | Bench A | Build the ladder: measure four real levels in millivolts and in dBu |
+| 40 | Bench B | Make a ground loop, then kill it five ways and measure each |
+| 35 | Bench C | Impedance, demonstrated, including the matched point |
+| 25 | Bench D | Common-mode rejection, measured, balanced and then unbalanced |
+| 10 | Close | Your ranked, measured list of what actually works |
+
+---
+
 ## Levels: the ladder everything sits on
 
 Audio in a theatre exists at four wildly different levels, and most connection problems are a level
@@ -189,6 +209,66 @@ And the one that is not on the list:
 It works. It is also how people die, and it is the single most dangerous thing done routinely in
 this industry. If you see a lifted earth pin or a cheater plug on a production, that is a stop-work
 conversation, not a note for later.
+
+---
+
+## Gain structure
+
+Levels are not just a table to look up. Where you add the gain, along a chain of several devices,
+decides how much noise and how much headroom the finished signal has.
+
+<!--anim:gain-structure-->
+
+Every stage adds its own noise and has a ceiling above which it clips. The rule that falls out of
+those two facts:
+
+> **Get the signal up to a healthy level as early as possible, then leave it alone.**
+
+Amplify at the first stage, where the noise you are amplifying is only the source's own. Amplify at
+the last stage and you amplify every hiss every earlier stage added, along with the signal.
+
+The two failure modes, which sound completely different:
+
+**Gain too low early, made up later.** The signal spends the chain close to the noise floor, and
+the final amplifier lifts noise and signal together. It sounds hissy, and turning anything down
+makes it worse.
+
+**Gain too high early.** An early stage clips. Every later stage faithfully reproduces the
+distortion, and no amount of turning down afterwards removes it, because the information is gone.
+
+Headroom is the gap between where you are running and where the stage clips: aim for around 20 dB,
+which feels wasteful and is what survives an actor shouting a line they have delivered quietly for
+three weeks.
+
+---
+
+## Phantom power
+
+A condenser microphone needs power, and running a second cable to every microphone is unacceptable,
+so the power goes down the same balanced pair as the signal.
+
+<!--anim:phantom-->
+
+48 volts is applied through a matched pair of 6.8 kΩ resistors, to pin 2 and pin 3 equally, with
+pin 1 as the return. The microphone takes its supply from the difference between those pins and
+earth, and because both signal conductors sit at the same DC potential, a differential receiver
+subtracts it away and sees nothing. **It is common mode, which is exactly why it is invisible to
+the audio.**
+
+What you actually need to know:
+
+- **Dynamic microphones do not need it and are not harmed by it**, provided the cable is correctly
+  wired. A balanced dynamic sees 48 V on both legs equally and does nothing about it.
+- **A miswired cable turns it dangerous.** If pin 2 or pin 3 shorts to pin 1 while phantom is on,
+  current flows through the microphone in a way it was not designed for. This is the practical
+  reason for the pin-to-pin isolation test from Class 2.
+- **Never plug or unplug with phantom on.** The pins make in an unpredictable order and the
+  resulting transient goes straight into a preamp at high gain. It is loud enough to damage a
+  loudspeaker and the people in front of it.
+- **Ribbon microphones can be destroyed by it**, particularly older ones and particularly through a
+  miswired cable. If you do not know what is on the end of a line, phantom stays off.
+- **It is not the same as T-power or plug-in power.** Those are different voltages on different
+  pins, and connecting one to the other is a repair bill.
 
 ---
 

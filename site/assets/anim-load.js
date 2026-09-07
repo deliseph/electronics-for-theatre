@@ -877,3 +877,333 @@ register('test-order', (host) => chain(host, {
   ],
   footer: '“Pass” is not a measurement. Every result is written down as a number, dated and initialled, on the sheet that goes in the case with the board.',
 }));
+
+// ---------------------------------------------------------------------------
+// Dimming
+// ---------------------------------------------------------------------------
+
+register('dimmer-types', (host) => compare(host, {
+  title: 'Three ways a lamp is actually dimmed',
+  sub: '“You cannot dim that on a dimmer” has a specific technical meaning, and this is it.',
+  fields: [
+    { label: 'How it works', key: 'how' },
+    { label: 'Dims', key: 'dims' },
+    { label: 'Fed with', key: 'fed', tone: 'energy' },
+    { label: 'What it costs you', key: 'costs', tone: 'fault' },
+  ],
+  items: [
+    {
+      name: 'Phase control', short: 'Phase', tone: 'energy',
+      line: 'A triac waits part of each mains half-cycle, then conducts for the rest of it. What a dimmer rack does.',
+      how: 'Chops the waveform, delivering less energy per cycle',
+      dims: 'Tungsten and other resistive loads',
+      fed: 'A dimmer way',
+      costs: 'Harmonics far up the audio band, filament sing, and it assumes a resistive load',
+      note: 'Cheap, handles kilowatts, and it is the source of the buzz in Class 7 and Class 8. <b>The choke that stops the filament singing is why a dimmer rack is heavy.</b>',
+    },
+    {
+      name: 'Sine wave', short: 'Sine', tone: 'safe',
+      line: 'An IGBT dimmer that reconstructs a genuine reduced-amplitude sine rather than chopping one.',
+      how: 'Synthesises a smaller sine wave',
+      dims: 'Almost anything, including transformers and many drivers',
+      fed: 'A dimmer way',
+      costs: 'Several times the price, and considerably more electronics to fail',
+      note: 'It exists because opera houses and broadcast studios could not live with the harmonics. <b>Silent, clean, expensive: the three properties in the order people notice them.</b>',
+    },
+    {
+      name: 'Constant current', short: 'LED', tone: 'signal',
+      line: 'What is inside every LED fixture. The supply is never varied at all.',
+      how: 'Holds the LED current and dims by PWM, at whatever frequency the manufacturer chose',
+      dims: 'The LEDs inside that one fixture',
+      fed: 'A constant live feed, never a dimmer',
+      costs: 'PWM that a camera may see, and no control except over DMX',
+      watch: 'An LED fixture on a dimmer way is one of the fourteen faults in Class 10. The dimmer varies voltage; the driver wanted a constant supply and a DMX instruction. The result is flicker, buzz, or a dead driver.',
+    },
+  ],
+  footer: 'The question to ask about any fixture is not “can it be dimmed” but “what does it want to be fed”. Those are different questions and only the second has a useful answer.',
+}));
+
+register('phase-control', (host) => {
+  let angle = 90;   // firing angle in degrees
+  let load = 'tungsten';
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'Chopping the waveform',
+    sub: 'Delay the firing point and the lamp gets less energy. Then put something other than a filament on it.',
+    note: '',
+  });
+
+  // Fraction of the half-cycle energy that survives, integrated properly.
+  const level = () => {
+    const a = (angle * Math.PI) / 180;
+    return (1 / Math.PI) * (Math.PI - a + Math.sin(2 * a) / 2);
+  };
+
+  const upd = () => {
+    setNote(load !== 'tungsten'
+      ? `A ${load === 'led' ? 'LED driver' : 'motor or transformer'} on a chopped waveform does not integrate the energy the way a filament does. ${load === 'led' ? 'The driver sees an input that appears and disappears, and it flickers, buzzes, or fails.' : 'The inductance fights the sudden edge, and the result is heat and audible noise.'} <b>This is the whole technical content of "you cannot dim that on a dimmer".</b>`
+      : `Firing at ${angle}° passes about ${Math.round(level() * 100)} per cent of the energy. A tungsten filament integrates it thermally and simply glows less. <b>It is cheap and it handles kilowatts, and the price is the harmonics it throws off, which is the buzz you will chase in Class 8.</b>`);
+    cv.once();
+  };
+
+  controls.append(slider('Firing angle', {
+    min: 0, max: 170, step: 5, value: 90, fmt: (v) => `${v}°`,
+    on: (v) => { angle = v; upd(); },
+  }).node);
+  controls.append(choice('Load', [
+    ['tungsten', 'Tungsten lamp'], ['led', 'LED fixture'], ['motor', 'Motor or transformer'],
+  ], { value: 'tungsten', on: (v) => { load = v; upd(); } }).node);
+
+  challenge('Dim a tungsten lamp to roughly half, and read the firing angle that does it.',
+    () => load === 'tungsten' && Math.abs(level() - 0.5) < 0.04);
+
+  const cv = canvas(stage, {
+    height: 270,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const gL = pad, gT = 24, gW = w - pad * 2 - 100, gH = 92;
+      const mid = gT + gH / 2;
+      const fire = (angle * Math.PI) / 180;
+      const ok = load === 'tungsten';
+
+      box(g, gL, gT, gW, gH, { fill: alpha(p.ground, 0.5), stroke: p.line, r: 6 });
+      line(g, gL, mid, gL + gW, mid, { color: alpha(p.muted, 0.7), lw: 1 });
+
+      // The full sine, faint, so you can see what was removed.
+      g.strokeStyle = alpha(p.muted, 0.45);
+      g.lineWidth = 1.5;
+      g.setLineDash([3, 3]);
+      g.beginPath();
+      for (let k = 0; k <= 240; k++) {
+        const x = gL + (k / 240) * gW;
+        const ph = (k / 240) * 4 * Math.PI - t * 2;
+        k ? g.lineTo(x, mid - Math.sin(ph) * (gH / 2 - 8)) : g.moveTo(x, mid - Math.sin(ph) * (gH / 2 - 8));
+      }
+      g.stroke();
+      g.setLineDash([]);
+
+      // The conducting part.
+      g.strokeStyle = ok ? R.energy : R.fault;
+      g.lineWidth = 2.4;
+      g.beginPath();
+      let pen = false;
+      for (let k = 0; k <= 320; k++) {
+        const x = gL + (k / 320) * gW;
+        const ph = (k / 320) * 4 * Math.PI - t * 2;
+        const inHalf = ((ph % Math.PI) + Math.PI) % Math.PI;
+        const on = inHalf >= fire;
+        const y = mid - (on ? Math.sin(ph) : 0) * (gH / 2 - 8);
+        if (!on) { pen = false; continue; }
+        if (!pen) { g.moveTo(x, mid); g.lineTo(x, y); pen = true; } else g.lineTo(x, y);
+      }
+      g.stroke();
+      label(g, `firing at ${angle}°`, gL + 6, gT + 12, { color: p.muted, size: 10, mono: true });
+      label(g, `${Math.round(level() * 100)}% of the energy`, gL + gW - 6, gT + 12, {
+        color: ok ? R.energy : R.fault, size: 10, mono: true, align: 'right',
+      });
+
+      // The lamp, or the thing that is unhappy.
+      const lx = w - pad - 84;
+      const b = ok ? level() ** 0.6 : 0;
+      if (ok) {
+        g.fillStyle = alpha(R.energy, 0.12 + b * 0.6);
+        g.beginPath(); g.arc(lx + 40, gT + 44, 24 + b * 18, 0, Math.PI * 2); g.fill();
+      }
+      box(g, lx, gT + 22, 80, 44, {
+        fill: ok ? alpha(R.energy, 0.15 + b * 0.45) : alpha(R.fault, 0.15),
+        stroke: ok ? p.line : R.fault, r: 6, lw: ok ? 1 : 2,
+      });
+      label(g, ok ? 'lamp' : load === 'led' ? 'LED driver' : 'motor', lx + 40, gT + 38, {
+        color: ok ? p.ground : R.fault, size: 10.5, align: 'center', weight: 700, max: 74,
+      });
+      label(g, ok ? `${Math.round(level() * 100)}%` : load === 'led' ? 'flicker, buzz' : 'heat, noise',
+        lx + 40, gT + 54, {
+          color: ok ? p.ground : R.fault, size: 9.5, align: 'center', max: 74,
+        });
+
+      // Harmonics, which are always there and are the real cost.
+      const hy = gT + gH + 28;
+      label(g, 'harmonic content thrown onto the supply', pad, hy, { color: p.muted, size: 10.5 });
+      const bars = 8;
+      const chop = 1 - level();
+      for (let k = 0; k < bars; k++) {
+        const bh = (k === 0 ? level() : chop * (0.75 / (k * 0.6 + 1))) * 44;
+        const bw = (w - pad * 2) / bars - 6;
+        g.fillStyle = k === 0 ? alpha(R.energy, 0.7) : alpha(R.fault, 0.35 + chop * 0.5);
+        g.fillRect(pad + k * ((w - pad * 2) / bars), hy + 54 - bh, bw, bh);
+        label(g, `${50 * (k + 1)}`, pad + k * ((w - pad * 2) / bars) + bw / 2, hy + 66, {
+          color: p.muted, size: 8.5, align: 'center', mono: true,
+        });
+      }
+      label(g, 'Hz', w - pad, hy + 78, { color: p.muted, size: 9, align: 'right' });
+      label(g, 'This is what a signal cable routed beside a dimmer feed picks up.', pad, hy + 78, {
+        color: p.muted, size: 10, max: w - pad * 2 - 30,
+      });
+    },
+  });
+  upd();
+});
+
+// ---------------------------------------------------------------------------
+// Class 6: layout and the sheet
+// ---------------------------------------------------------------------------
+
+register('board-layout', (host) => {
+  let layout = 'tight';
+
+  const { controls, stage, setNote, challenge } = figure(host, {
+    title: 'The loop the schematic does not show',
+    sub: 'Same circuit, two layouts. One of them is an antenna.',
+    note: '',
+  });
+
+  const upd = () => {
+    setNote(layout === 'tight'
+      ? 'Supply positive, load terminal, MOSFET, back to supply negative: short and wide, so the loop encloses almost no area. <b>Five amps switching in microseconds through a small loop radiates very little; through a large one it is a transmitter, and what it transmits into is everything else on your board.</b>'
+      : layout === 'loose'
+        ? 'The same components, connected the same way, with the return routed the long way round. The schematic is identical and the loop now encloses a large area. <b>This is why layout is a separate skill from schematic design, and why "it is wired correctly" is not the same as "it works".</b>'
+        : 'The control ground and the load ground are joined by a copper pour that runs under the optocoupler. Every component still works perfectly and the isolation no longer exists. <b>The dead test between the two grounds is the only thing that finds this, which is why it is the most important measurement on the board.</b>');
+    cv.once();
+  };
+
+  controls.append(choice('Layout', [
+    ['tight', 'Tight return path'], ['loose', 'Return routed the long way'], ['bridged', 'Grounds bridged under the opto'],
+  ], { value: 'tight', on: (v) => { layout = v; upd(); } }).node);
+
+  challenge('Break the isolation without changing a single component.', () => layout === 'bridged');
+
+  const cv = canvas(stage, {
+    height: 260,
+    draw(g, w, h, t) {
+      const p = palette();
+      const R = role(p);
+      const pad = 16;
+      const bx = pad, by = 26, bw = Math.min(w - pad * 2, 380), bh = 150;
+      box(g, bx, by, bw, bh, { fill: alpha(p.raised, 0.6), stroke: p.line, r: 6 });
+
+      // The isolation split, drawn down the middle of the board.
+      const splitX = bx + bw * 0.42;
+      const bridged = layout === 'bridged';
+      line(g, splitX, by + 4, splitX, by + bh - 4, {
+        color: bridged ? alpha(R.fault, 0.6) : alpha(R.safe, 0.6), lw: 2, dash: [5, 4],
+      });
+      label(g, 'control side', bx + 8, by + 14, { color: R.signal, size: 9.5, weight: 700 });
+      label(g, 'load side', splitX + 8, by + 14, { color: R.fault, size: 9.5, weight: 700 });
+
+      // The high-current loop.
+      const supX = bx + bw - 30, supY = by + 34;
+      const loadX = splitX + 40, loadY = by + 34;
+      const fetX = splitX + 40, fetY = by + bh - 44;
+      const returnY = layout === 'loose' ? by + bh - 12 : fetY + 16;
+      const returnLeft = layout === 'loose' ? splitX + 10 : fetX;
+
+      box(g, supX - 22, supY - 12, 26, 24, { fill: p.raised, stroke: p.line, r: 4 });
+      label(g, '+V', supX - 9, supY, { color: R.energy, size: 9.5, align: 'center' });
+      box(g, loadX - 20, loadY - 12, 40, 24, { fill: p.raised, stroke: p.line, r: 4 });
+      label(g, 'load', loadX, loadY, { color: p.ink2, size: 9.5, align: 'center' });
+      box(g, fetX - 18, fetY - 14, 36, 28, { fill: p.raised, stroke: p.line, r: 4 });
+      label(g, 'Q1', fetX, fetY, { color: p.ink2, size: 10, align: 'center', weight: 600 });
+
+      const loopCol = layout === 'loose' ? R.fault : R.energy;
+      g.strokeStyle = loopCol;
+      g.lineWidth = layout === 'loose' ? 2.5 : 5;
+      g.beginPath();
+      g.moveTo(supX - 22, supY);
+      g.lineTo(loadX + 20, supY);
+      g.moveTo(loadX, loadY + 12);
+      g.lineTo(loadX, fetY - 14);
+      g.moveTo(fetX, fetY + 14);
+      g.lineTo(fetX, returnY);
+      g.lineTo(returnLeft, returnY);
+      if (layout === 'loose') { g.lineTo(returnLeft, by + 20); g.lineTo(supX - 9, by + 20); }
+      g.lineTo(supX - 9, supY - 12);
+      g.stroke();
+
+      // The enclosed area, shaded, because area is the whole point.
+      g.fillStyle = alpha(loopCol, layout === 'loose' ? 0.16 : 0.1);
+      if (layout === 'loose') g.fillRect(returnLeft, by + 20, supX - 9 - returnLeft, returnY - by - 20);
+      else g.fillRect(fetX - 2, supY, loadX + 20 - fetX, returnY - supY);
+      label(g, layout === 'loose' ? 'large loop area: this radiates' : 'small loop area',
+        (splitX + supX) / 2, by + bh - 24, {
+          color: loopCol, size: 10, align: 'center', weight: 600, max: bw * 0.5,
+        });
+
+      // The bridge, when it exists.
+      if (bridged) {
+        line(g, bx + 20, by + bh - 22, splitX + 20, by + bh - 22, { color: R.fault, lw: 4 });
+        label(g, 'copper pour under the opto', bx + 22, by + bh - 32, {
+          color: R.fault, size: 9.5, weight: 700, max: bw * 0.6,
+        });
+      }
+
+      // Current, at speed, so the loop reads as carrying something.
+      for (let k = 0; k < 5; k++) {
+        const u = ((t * 0.7 + k / 5) % 1);
+        g.fillStyle = loopCol;
+        g.beginPath();
+        g.arc(loadX, loadY + 12 + u * (fetY - 14 - loadY - 12), 3, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      const rx = bx + bw + 12;
+      if (w - rx > 100) {
+        readoutChip(g, rx, by + 6, 'RADIATED NOISE', layout === 'loose' ? 'high' : 'low', {
+          color: layout === 'loose' ? R.fault : R.safe, p, w: Math.min(120, w - rx - pad),
+        });
+        readoutChip(g, rx, by + 48, 'ISOLATION', bridged ? 'GONE' : 'intact', {
+          color: bridged ? R.fault : R.safe, p, w: Math.min(120, w - rx - pad),
+        });
+      }
+
+      const ty = by + bh + 20;
+      label(g, 'Keep the high-current loop small and fat · keep the two grounds apart · decouple at the chip · put the heat where it can leave',
+        pad, ty, { color: p.muted, size: 10.5, max: w - pad * 2 });
+    },
+  });
+  upd();
+});
+
+register('board-doc', (host) => compare(host, {
+  title: 'The sheet, point by point',
+  sub: 'One side of A4. It is what somebody reads at 19:45 when the board has stopped and you are not there.',
+  fields: [
+    { label: 'What goes on it', key: 'what' },
+    { label: 'Without it', key: 'without', tone: 'fault' },
+  ],
+  items: [
+    { name: '1 · What it is', short: '1', tone: 'signal', line: 'Two sentences: what it is and what it is for.',
+      what: '“Four-channel isolated low-side switch for practical lamps and solenoids up to 5 A each.”',
+      without: 'It is an unlabelled board in a flight case, and it will be thrown away' },
+    { name: '2 · Ratings', short: '2', tone: 'signal', line: 'The numbers a production manager needs before saying yes.',
+      what: 'Supply range, current per channel, maximum total, isolation rating',
+      without: 'Somebody connects a 10 A load to a 5 A channel and is surprised' },
+    { name: '3 · Pinout', short: '3', tone: 'signal', line: 'Drawn, with the connector orientation shown.',
+      what: 'Which terminal is which, seen from the direction you actually look at it',
+      without: 'A reversed supply, once, and then a new board' },
+    { name: '4 · Power-up', short: '4', tone: 'energy', line: 'What it does the moment power arrives.',
+      what: '“All outputs off until a control signal is present.”',
+      without: 'Nobody knows whether it fires when the power blips in the interval' },
+    { name: '5 · Loss of control', short: '5', tone: 'energy', line: 'The sentence production managers actually read.',
+      what: '“Outputs off within one loop pass if the control connector is removed.”',
+      without: 'The answer becomes “we would have to test it”, which means “use something else”' },
+    { name: '6 · Fault codes', short: '6', tone: 'safe', line: 'What the indicator is telling you from six metres away.',
+      what: 'One blink idle, two running, rapid for a fault',
+      without: 'Diagnosis requires a laptop, and there is not one in the wing' },
+    { name: '7 · Reset', short: '7', tone: 'safe', line: 'One deliberate physical action, documented.',
+      what: '“Hold the reset button for two seconds.” Not a power cycle',
+      without: 'Somebody hunts for the right plug among forty in a rack' },
+    { name: '8 · Known limitations', short: '8', tone: 'fault', line: 'Where the marks are won, and where most people lose them.',
+      what: '“The load sits at supply potential when off. There is no over-current protection.”',
+      without: 'A limitation you did not name is a defect. One you named is engineering',
+      note: 'Every device in the room has limitations. <b>The sheets that list three specific ones score above the sheets that list none, and a production can plan around a limitation it has been told about.</b>' },
+    { name: '9 · Test results', short: '9', tone: 'safe', line: 'Numbers, dated and initialled. Not ticks.',
+      what: 'Isolation resistance, R_DS(on) calculated from V_DS, quiescent current',
+      without: '“Pass” is not a measurement and cannot be checked by anybody else' },
+    { name: '10 · Who to contact', short: '10', tone: 'signal', line: 'A name and a way to reach it.',
+      what: 'Yours, and the department’s',
+      without: 'The board is orphaned the day you graduate' },
+  ],
+  footer: 'The stranger test is the specification: somebody who has never seen the device, given only this sheet, must power it up, trigger it, cause a fault, identify it and reset it.',
+}));

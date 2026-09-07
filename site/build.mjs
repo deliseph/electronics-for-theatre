@@ -169,7 +169,6 @@ for (const c of CLASSES) {
   const unit = UNITS.find((u) => u.classes.includes(c.n));
   if (!unit) throw new Error(`course: Class ${c.n} belongs to no unit`);
   c.unit = unit;
-  c.benchHours = Math.round(c.bench * HOURS * 2) / 2;
 }
 for (const u of UNITS) {
   for (const n of u.classes) {
@@ -203,6 +202,38 @@ function removeSection(md, key) {
   }
   return [...lines.slice(0, start), ...lines.slice(end)].join('\n');
 }
+
+// The run of the session: the four hours, accounted for.
+//
+// A course that says "four hours" and then lists three bench blocks has not
+// said where the other ninety minutes went. This parses the authored table and
+// the caller checks it sums to the full session, so a class cannot quietly
+// stop adding up.
+function parsePlan(md, file) {
+  const sec = sliceSection(md, 'Run of the session');
+  if (!sec) throw new Error(`${file}: no "## Run of the session" section`);
+  const rows = [];
+  for (const line of sec.split('\n')) {
+    if (!/^\|/.test(line)) continue;
+    const cells = line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+    if (cells.length !== 3) continue;
+    if (/^:?-+:?$/.test(cells[0]) || /^Min$/i.test(cells[0])) continue;
+    const mins = Number(cells[0]);
+    if (!Number.isFinite(mins) || mins <= 0) {
+      throw new Error(`${file}: run of the session has a row whose first cell is not minutes: ${line}`);
+    }
+    rows.push({ mins, kind: cells[1], what: cells[2] });
+  }
+  if (!rows.length) throw new Error(`${file}: run of the session has no rows`);
+  return rows;
+}
+
+// Which colour band a block gets. Bench time is the expensive kind, so it is
+// the one the eye should find first.
+const planTone = (kind) => (/^bench/i.test(kind) ? 'bench'
+  : /^break$/i.test(kind) ? 'break'
+    : /^watch$/i.test(kind) ? 'watch'
+      : /^(open|close)$/i.test(kind) ? 'edge' : 'idea');
 
 // ---------------------------------------------------------------------------
 // Flashcards generated from the per-class reference tables, so a card can never
@@ -473,6 +504,40 @@ function practiceHtml(ids, n) {
   }).join('');
 }
 
+
+// The session plan, drawn as a proportional strip plus its rows. The strip is
+// to scale, so a class that is mostly bench looks mostly bench.
+function planHtml(plan, total) {
+  const strip = plan.map((b) => {
+    const pct = (b.mins / total) * 100;
+    const tone = planTone(b.kind);
+    return `<span class="plan-seg plan-${tone}" style="width:${pct.toFixed(3)}%"
+      title="${esc(b.kind)} · ${b.mins} min">${pct > 7 ? `<b>${b.mins}</b>` : ''}</span>`;
+  }).join('');
+
+  const rows = plan.map((b) => `<li class="plan-row plan-${planTone(b.kind)}">
+      <span class="plan-min">${b.mins}<i>min</i></span>
+      <span class="plan-kind">${esc(b.kind)}</span>
+      <span class="plan-what">${b.what ? esc(b.what) : '&mdash;'}</span>
+    </li>`).join('');
+
+  const bench = plan.filter((b) => planTone(b.kind) === 'bench').reduce((a, b) => a + b.mins, 0);
+  const idea = plan.filter((b) => planTone(b.kind) === 'idea').reduce((a, b) => a + b.mins, 0);
+
+  return `<section class="plan">
+    <header class="plan-head">
+      <h2 class="plan-h" id="run-of-the-session">Run of the session
+        <a class="anchor" href="#run-of-the-session" aria-label="Link to this section">#</a></h2>
+      <p class="plan-tot"><b>${total} minutes</b> · ${bench} at the bench · ${idea} on the idea</p>
+    </header>
+    <div class="plan-strip">${strip}</div>
+    <ol class="plan-rows">${rows}</ol>
+    <p class="plan-note">Blocks are an order of work rather than a timetable: a class that runs long
+      on the bench is a class that is going well. The minutes are here so you know what you are
+      trading against when it does.</p>
+  </section>`;
+}
+
 function selfTestHtml(n) {
   const items = selfTest[n];
   if (!items) return '';
@@ -509,6 +574,15 @@ for (const c of CLASSES) {
 
   const prepMd = sliceSection(raw, 'Before you come');
   if (!prepMd) throw new Error(`${c.file}: no "## Before you come" section`);
+
+  // Every class is the same length, so every plan has to reach it. A class that
+  // does not add up is a class somebody will run out of material in.
+  const plan = parsePlan(raw, c.file);
+  const planned = plan.reduce((a, x) => a + x.mins, 0);
+  if (planned !== HOURS * 60) {
+    throw new Error(`${c.file}: run of the session totals ${planned} min, not the ${HOURS * 60} min the class actually is`);
+  }
+  const benchPlanned = plan.filter((x) => planTone(x.kind) === 'bench').reduce((a, x) => a + x.mins, 0);
   const numbersMd = sliceSection(raw, 'Numbers from this class');
   if (!numbersMd) throw new Error(`${c.file}: no "## Numbers from this class" section`);
 
@@ -520,14 +594,17 @@ for (const c of CLASSES) {
   // Spot the myth deck rather than a list nobody rereads.
   let bodyMd = raw.replace(/^#\s+[^\n]*\n/, '');
   bodyMd = removeSection(bodyMd, 'Before you come');
+  bodyMd = removeSection(bodyMd, 'Run of the session');
   bodyMd = removeSection(bodyMd, 'Common misconceptions');
 
   const doc = render(bodyMd);
   const prep = render(prepMd);
   animRendered += (doc.html.match(/class="anim"/g) || []).length;
 
-  classData.push({ ...c, doc, prep, numbersMd });
+  classData.push({ ...c, doc, prep, numbersMd, plan, benchPlanned });
 }
+
+for (const c of classData) c.benchHours = Math.round((c.benchPlanned / 60) * 2) / 2;
 
 const animExpected = CLASSES.reduce((a, c) => a + (read(c.file).match(/^<!--\s*anim:/gm) || []).length, 0);
 
@@ -540,6 +617,7 @@ for (const c of classData) {
 
   const tabs = [
     ['read', 'The class'],
+    ['plan', 'Run of it'],
     ['prepare', 'Prepare'],
     ...(c.tools.length ? [['tools', 'Calculators']] : []),
     ...(c.practice.length ? [['practice', 'Practice']] : []),
@@ -576,6 +654,13 @@ for (const c of classData) {
       ${prev ? `<a class="pager-prev" href="/class/${prev.n}"><span>Previous</span><b>${c.n - 1}. ${esc(prev.title)}</b></a>` : '<span></span>'}
       ${next ? `<a class="pager-next" href="/class/${next.n}"><span>Next</span><b>${c.n + 1}. ${esc(next.title)}</b></a>` : '<span></span>'}
     </nav>
+  </section>
+
+  <section class="panel" data-panel="plan">
+    <p class="lede">The four hours, accounted for. This is the lecturer's view of the session, and it
+    is here rather than hidden in a pack because a student who can see where the time goes can see
+    what the class is actually for.</p>
+    ${planHtml(c.plan, HOURS * 60)}
   </section>
 
   <section class="panel" data-panel="prepare">

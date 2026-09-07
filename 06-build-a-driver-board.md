@@ -32,6 +32,24 @@ Everything. Iron skills, meter, safety glasses, notebook, and the cables from Cl
 
 ---
 
+## Run of the session
+
+Four hours, accounted for. Blocks are an order of work rather than a timetable: a class that runs
+long on the bench is a class that is going well. The minutes are here so that you know what you are
+trading against when it does.
+
+| Min | Block | What happens |
+| --- | --- | --- |
+| 10 | Open | Numbers quiz, and the components you could not account for on the schematic |
+| 25 | Bench A | Read and check: walk the schematic, compare the pre-class calculations |
+| 100 | Bench B | Build, in order, with channel one tested before the other three are populated |
+| 15 | Break |  |
+| 50 | Bench C | Test and record: all five tests, every result written as a number |
+| 25 | Bench D | Break somebody else’s board, then re-run the test that would have caught yours |
+| 15 | Close | Write the documentation sheet, including the two known limitations |
+
+---
+
 ## What you are building
 
 A four-channel isolated low-side switch. In plain terms: four logic inputs, four outputs that can
@@ -198,6 +216,62 @@ It carries:
 6. **Known limitations.** Yours has at least two: the load sits at supply potential when off, and
    there is no over-current protection. Write them down. A limitation you have named is engineering;
    the same limitation undocumented is a defect.
+
+---
+
+## Where the parts go, and why it is not arbitrary
+
+The schematic says what connects to what. The **layout** says where the current actually flows, and
+on a board switching several amps that is a separate question with its own answers.
+
+<!--anim:board-layout-->
+
+Four rules, in the order they matter on this board:
+
+**Keep the high-current loop small and fat.** Supply positive, through the load terminal, through
+the MOSFET, back to supply negative. That loop carries five amps switching in microseconds, and its
+physical area is the antenna radiating interference into everything else. Short and wide.
+
+**Keep the control ground away from the load ground.** They are not connected on this board, and
+the layout has to make that visible. A copper pour that quietly bridges under the optocoupler
+defeats the isolation while every component is still working perfectly.
+
+**Decoupling goes at the chip, not at the connector.** A 100 nF capacitor eight centimetres from the
+part it is decoupling is decoupling the track, not the part.
+
+**Put the heat where it can leave.** The MOSFET's tab is its thermal path. Copper attached to it is
+a heatsink; a tab in free air with a via under it is not.
+
+For veroboard and tag strip this becomes: plan the current path before you cut a track, and run the
+high-current return as its own copper rather than sharing it with the control ground.
+
+---
+
+## The sheet that goes in the case
+
+<!--anim:board-doc-->
+
+Every board leaves this room with one side of A4, and it is marked. In the industry this sheet is
+the difference between a piece of equipment that can be used on a production and a mystery object
+in a flight case.
+
+Ten points, and point eight is where the marks are won and lost:
+
+1. What it is and what it is for. Two sentences.
+2. Ratings: supply range, current per channel, maximum total, isolation rating.
+3. Pinout, drawn, with the connector orientation shown.
+4. Behaviour on power-up.
+5. Behaviour on loss of the control signal.
+6. Fault conditions detected, and the indicator code for each.
+7. Reset procedure.
+8. **Known limitations.** Yours has at least two: the load sits at supply potential when off, and
+   there is no over-current protection.
+9. Test results, as numbers, dated and initialled.
+10. Who to contact.
+
+**A limitation you have named is engineering. The same limitation undocumented is a defect.** A
+production manager who reads "the load sits at supply potential when off" can plan around it. One
+who discovers it is having a different conversation, at a worse time, about you.
 
 ---
 
