@@ -224,7 +224,7 @@ and who to call. One side of A4, laminated, in the flight case.
 **Keep the source somewhere that is not one laptop.** A sketch that exists only on the machine of a
 student who has graduated is a liability with a countdown on it. Version control is four commands,
 and it is the difference between a prop somebody can maintain and a prop somebody has to rebuild.
-[Computer Science for Theatre](https://github.com/deliseph/Computer-Science) Class 3 is where that is actually taught, and its
+[Computer Science for Theatre](https://computer-science-theatre.vercel.app/class/3) Class 3 is where that is actually taught, and its
 Class 4 covers the thing this course does not touch at all: what to do when a model writes the first
 draft of your firmware, and how to verify it before it drives anything that moves.
 

@@ -123,7 +123,7 @@ The natural next step, and the sibling module to this one:
 [Computer Systems and Networking for Theatre](https://github.com/deliseph/theatre-computer-systems).
 
 If the part you enjoyed was Classes 11 to 14, the firmware rather than the soldering, then
-[Computer Science for Theatre](https://github.com/deliseph/Computer-Science) is the one to take next: reading code you did not write,
+[Computer Science for Theatre](https://computer-science-theatre.vercel.app) is the one to take next: reading code you did not write,
 version control, working with AI without being caught out by it, and the architecture decision
 about what belongs on a chip and what belongs on a computer.
 Networks, protocols, media over IP, show control architecture, and the diagnostic ladder.

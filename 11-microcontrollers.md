@@ -75,7 +75,7 @@ Inside one chip:
 For this course the chip matters less than the pattern. An ATmega328 at 16 MHz, an ESP32 at
 240 MHz, an RP2040: same ideas, different speeds and peripheral counts.
 
-> **The same chip from another angle.** [Computer Science for Theatre](https://github.com/deliseph/Computer-Science) Class 5 asks
+> **The same chip from another angle.** [Computer Science for Theatre](https://computer-science-theatre.vercel.app/class/5) Class 5 asks
 > a different question about this hardware: not what the chip can do, but whether the job belongs on
 > a chip at all rather than on a computer, and how much work actually fits in one pass of the loop.
 > It is a separate course and it does not require this one; if you want the architecture decision
