@@ -158,26 +158,32 @@ repetition state and the theme are stored per browser and never leave the device
 
 ---
 
-## The other courses
+## Where this sits, and the other three courses
 
-Four separate courses, taught by the same person. **They are not a programme and they do not run in
-an order.** Each takes a position in the signal path and goes deep from there, so the same idea looks
-different in each; where two of them touch, they say so and point at the one that goes furthest.
+**This is the first technical course a Technical Direction student takes**, in year one, and it
+assumes nothing. Everything in it is taught from the beginning with a meter in your hand.
 
-- [Electronics for Theatre](https://github.com/deliseph/electronics-for-theatre), what happens below
-  the connector, with a bench and a meter
-- [Computer Systems and Networking for Theatre](https://github.com/deliseph/theatre-computer-systems),
-  the machine and the network under the show
-- [Computer Science for Theatre](https://computer-science-theatre.vercel.app), the instructions
-  themselves: code, AI, and animation as a program
-- [Show Networking and Control Systems](https://github.com/deliseph/show-netoworking-control-system),
-  the agreements between devices, protocol by protocol
-- [showstack](https://showstack-inky.vercel.app/), the open index every number and bilingual term is
-  checked against
+It is followed in year two by
+[Computer Science for Theatre](https://computer-science-theatre.vercel.app/), which is the only
+real progression among these four: the same students, the year after, and it assumes this course
+outright. It does not re-teach a pin, an ADC or a debounce, because you spent four hours on each of
+them here. Between them, this course owns the hardware and that one owns the software.
 
-They are built on the same engine, the bilingual glossaries agree with each other deliberately, and
-[Computer Science for Theatre](https://github.com/deliseph/Computer-Science)'s `alignment.md` is the
-audit of which one goes deepest on what.
+The other two are for other rooms:
+
+| Course | Who is in it |
+|---|---|
+| [Computer Systems and Networking](https://github.com/deliseph/theatre-computer-systems) | Media Design and Technology, year 1. A different cohort, who never take this course |
+| [Show Networking and Control Systems](https://github.com/deliseph/show-netoworking-control-system) | An elective, open to anyone, assuming none of the others |
+| [showstack](https://showstack-inky.vercel.app/) | Not a course: the open index all four check their numbers and bilingual terms against |
+
+Where two of these reach the same object they reach it from different positions and ask different
+questions of it. DMX here is a differential pair on a scope; in Computer Systems it is a quantity of
+data; in Computer Science it is bytes arriving at a UART inside a loop with a deadline; in the
+elective it is a standard with a specified behaviour on loss. The full map is
+[how the four relate](https://computer-science-theatre.vercel.app/alignment).
+
+---
 
 ## Licence
 
