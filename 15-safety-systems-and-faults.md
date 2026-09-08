@@ -175,6 +175,17 @@ meeting. Stop.
 
 ---
 
+### The topology, in a browser
+
+<!--circuit:interlock-->
+
+Halt the microcontroller and confirm the chain still works. Then put the microcontroller *in* the
+chain and say, precisely and out loud, what you have just given away.
+
+**Read what that card says the simulation hides before you take any of this as a design.** Contact
+ratings, forced-guided contacts, dual-channel monitoring, category ratings and a signed risk
+assessment are the difference between this picture and an interlock, and none of them are here.
+
 ## Isolation and lock-off
 
 <!--anim:lockout-->

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { render, esc, slugify } from './lib/markdown.mjs';
 import { selfTest, readiness, faultScenarios, benchChecks } from './data/interactive.mjs';
+import { circuits } from './data/circuits.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // A deploy tree that carries its own copy under ./content wins, so the site can
@@ -325,7 +326,7 @@ const STAMP = buildStamp();
 const AUTHOR = {
   name: 'Migu Mianizt Leung',
   links: [
-    ['mi2.dev', 'https://www.mi2.dev'],
+    ['mi2.dev', 'https://migu-leung-portfolio.vercel.app'],
     ['LinkedIn', 'https://www.linkedin.com/in/mi2dev/'],
     ['Medium', 'https://medium.com/@mi2dev'],
     ['Instagram', 'https://instagram.com/mi2.dev'],
@@ -333,7 +334,7 @@ const AUTHOR = {
   work: [
     ['showstack', 'https://showstack-inky.vercel.app/', 'the open index of live entertainment technology'],
     ['showstack on GitHub', 'https://github.com/deliseph/showstack', 'MIT code, CC BY 4.0 data'],
-    ['mi2.dev', 'https://www.mi2.dev', 'the practice these modules come out of'],
+    ['mi2.dev', 'https://migu-leung-portfolio.vercel.app', 'the practice these modules come out of'],
   ],
 };
 
@@ -346,6 +347,7 @@ const NAV_GROUPS = [
   ['While you work', [
     ['/tools', 'Calculators', 'Every calculation, with the working shown'],
     ['/practice', 'Practice', 'Drills, claims, component ID, fault sim'],
+    ['/wiring', 'Wiring bench', 'Build the circuit in a browser before you build it on the bench'],
     ['/map', 'The map', 'Every figure and card, and the ones you have opened'],
   ]],
   ['Look it up', [
@@ -743,7 +745,7 @@ for (const c of classData) {
     body,
     active: `class-${c.n}`,
     bodyAttrs: ` data-cls="${c.n}"`,
-    scripts: ['/assets/anim.js', '/assets/tools.js', '/assets/practice.js'],
+    scripts: ['/assets/anim.js', '/assets/tools.js', '/assets/practice.js', '/assets/wiring.js'],
   }));
 
   for (const b of c.doc.blocks) addSearch(route, `Class ${c.n}: ${c.title}`, b.title, b.html);
@@ -951,6 +953,43 @@ for (const [id, t] of Object.entries(TOOL_TITLES)) {
   addSearch(`/tools#tool-${id}`, 'Calculators', t, `${t}: a calculator that shows its working, used in class and in the capstone.`);
 }
 
+// The wiring bench.
+//
+// Every circuit in one place, for the student who wants half an hour of it on a
+// Sunday rather than the one their class happened to reach.
+write('/wiring', shell({
+  title: 'The wiring bench',
+  desc: 'Build the circuit in a browser before you build it on the bench. Seven circuits from across the course, each with what to change, what the simulation tells you and what it does not.',
+  body: `<article class="doc"><header class="page-head">
+      <p class="eyebrow">
+        <span class="pill">${circuits.length} circuits</span>
+        <span class="pill pill-q">Nothing to install</span>
+      </p>
+      <h1>The wiring bench</h1>
+      <p class="strap">A student who has read about a pull-down resistor and one who has removed one
+      and watched an input float are not in the same position, and only one of them will diagnose it
+      on a Tuesday. These run in a browser, so the second position is reachable from a laptop on a
+      bus.</p>
+      <p class="note"><b>A passing simulation is not a proof.</b> There is no heat here, no smell, no
+      dry joint, and no cable that has been walked on for six weeks. This is where you find out
+      whether the idea is right. The bench is where you find out whether the thing is, and that is
+      why the bench blocks are still most of every class.</p>
+      <div class="head-actions">
+        <a class="btn btn-primary" href="https://www.tinkercad.com/circuits" rel="noopener" target="_blank">Open Tinkercad Circuits ↗</a>
+        <a class="btn" href="/tools">Calculators</a>
+        <a class="btn" href="/safety">Safety card</a>
+      </div>
+    </header>
+    <div data-circuit-index></div>
+  </article>`,
+  active: '/wiring',
+  scripts: ['/assets/wiring.js'],
+}));
+for (const c of circuits) {
+  addSearch(`/wiring#ck-${c.id}`, 'The wiring bench', c.title,
+    `${c.build} Class ${c.cls}, about ${c.mins} minutes. ${c.shows}`);
+}
+
 write('/practice', shell({
   title: 'Practice',
   desc: 'Numbers drill, component identification, spot the myth, and a fault diagnosis simulator.',
@@ -1130,7 +1169,7 @@ write('/', shell({
   <section class="byline" id="who">
     <h2 class="sched-h">Who made this</h2>
     <blockquote class="byline-line"><p>The design test &mdash; if an ordinary person can&rsquo;t feel it,
-      it failed.</p><cite>Migu Mianizt Leung, <a href="https://www.mi2.dev" rel="noopener" target="_blank">mi2.dev</a></cite></blockquote>
+      it failed.</p><cite>Migu Mianizt Leung, <a href="https://migu-leung-portfolio.vercel.app" rel="noopener" target="_blank">mi2.dev</a></cite></blockquote>
     <p class="byline-p">Built and maintained by
       <a href="${AUTHOR.links[0][1]}" rel="noopener" target="_blank">${AUTHOR.name}</a>, who teaches the
       course it belongs to. Questions are welcome, and so is a correction: if something here does not
@@ -1270,6 +1309,7 @@ fs.writeFileSync(path.join(OUT, 'assets', 'data.json'), JSON.stringify({
   classes: CLASSES.map((c) => ({ n: c.n, title: c.title, slug: c.slug, unit: c.unit.n, bench: c.benchHours })),
   units: UNITS,
   drillCards, glossCards, myths, mapFigures, classLinks, readiness, faultScenarios, benchChecks,
+  circuits,
   hours: HOURS, totalHours: TOTAL_HOURS,
 }));
 fs.writeFileSync(path.join(OUT, 'search-index.json'), JSON.stringify(searchIndex));
@@ -1277,7 +1317,7 @@ fs.writeFileSync(path.join(OUT, 'robots.txt'), 'User-agent: *\nAllow: /\n');
 fs.writeFileSync(path.join(OUT, 'version.json'), JSON.stringify(STAMP, null, 2));
 
 const routes = ['/', '/prepare', '/map', '/foundations', '/safety', '/toolkit', '/tools', '/practice',
-  '/glossary', '/numbers', '/next',
+  '/wiring', '/glossary', '/numbers', '/next',
   ...CLASSES.map((c) => `/class/${c.n}`), ...CLASSES.map((c) => `/teach/${c.n}`)];
 
 console.log(`Built ${routes.length} routes`);

@@ -170,6 +170,13 @@ than the analogy itself.
 
 ---
 
+### Wire it before you wire it
+
+<!--circuit:ohms-law-->
+
+Ten minutes in a browser, with a meter on it. Predict every reading before you press run: the
+prediction is the exercise and the simulation is only the marker.
+
 ## Series and parallel: the two ways things connect
 
 Two components, two ways to wire them, completely different behaviour. Nearly every wiring mistake
@@ -200,6 +207,14 @@ increases the current drawn.** People know this. What they do not do is act on i
 16 A way ends up with 19 A of LED fixtures on it because each one is "only small".
 
 ---
+
+### The divider that sags
+
+<!--circuit:divider-->
+
+This is the circuit that most people build wrong once and never again. Two resistors, half the
+voltage, and then a load hung on the middle that pulls it somewhere else entirely. **A divider is not
+a power supply**, and the reason is visible in about ninety seconds here.
 
 ## AC, DC, and why the wall is different
 

@@ -166,6 +166,13 @@ voltage, and voltage is not what an LED responds to sensibly.
 
 ---
 
+### Wire it before you wire it
+
+<!--circuit:switch-bounce-->
+
+A pushbutton, a pull-down, and a counter. Press it once and read three. Then take the pull-down out
+and watch what an input does with nothing holding it, which is not zero and is not one.
+
 ## Inductors, and the kick
 
 An inductor stores energy in a magnetic field, and it **opposes a change in current** — the exact

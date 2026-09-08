@@ -153,6 +153,19 @@ export function render(md) {
       continue;
     }
 
+    // Wiring bench mount point: `<!--circuit:id-->` on its own line becomes a
+    // Tinkercad Circuits card, sitting in the prose at the point the thing being
+    // wired is taught. Nothing is requested from Autodesk until somebody clicks,
+    // so a class page open on a projector costs no third-party request just by
+    // being open, which is the same rule the video cards follow.
+    const circ = /^<!--\s*circuit:([a-z0-9-]+)\s*-->$/.exec(line.trim());
+    if (circ) {
+      para();
+      out.push(`<div class="circuit" data-circuit="${circ[1]}" id="ck-${circ[1]}"></div>`);
+      i++;
+      continue;
+    }
+
     // Video mount point. `<!--video:ID|Title|Channel|Why-->` on its own line.
     // Nothing is requested from YouTube until the student clicks, so a class
     // page costs no third-party requests just by being open on a projector.

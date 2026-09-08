@@ -161,6 +161,14 @@ Class 11 builds one.
 
 ---
 
+### Wire it before you wire it
+
+<!--circuit:transistor-switch-->
+
+Delete the flyback diode and watch the rail. **That spike is the energy that was in the motor's
+magnetic field**, and it has to go somewhere; without the diode it goes through your transistor. This
+is the one to run twice.
+
 ## Isolation: the part that matters most to you
 
 <!--anim:opto-->
@@ -316,6 +324,13 @@ and four switch-mode supplies together. Measure the peak and the duration of eac
 four supplies switched a second apart and compare the peaks.
 
 ---
+
+### Dimming by chopping
+
+<!--circuit:pwm-dimming-->
+
+Watch the waveform rather than the LED. The eye integrates and tells you a comfortable lie; the scope
+does not, and a camera shutter agrees with the scope.
 
 ## Common misconceptions
 

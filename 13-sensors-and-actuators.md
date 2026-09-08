@@ -143,6 +143,14 @@ homed since power-up must not be allowed to move at speed.
 
 ---
 
+### Wire it before you wire it
+
+<!--circuit:sensor-scaling-->
+
+Raw counts first, then the map, then the averaging. Notice that the LDR's useful range is a fraction
+of the ADC's range, which is true of nearly every real sensor and is the thing that makes a naive
+`map()` feel unresponsive at both ends.
+
 ## Actuators, and the responsibility that comes with them
 
 <!--anim:motor-types-->
