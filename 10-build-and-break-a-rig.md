@@ -181,7 +181,7 @@ counters. Three checks, in order, before anything else:
    downstream, and you are back to a DMX fault.
 
 Those three questions split the network half of the rig into thirds in under a minute, and the
-sibling module on [computer systems and networking](https://github.com/deliseph/theatre-computer-systems)
+sibling module on [computer systems and networking](https://theatre-computer-systems.vercel.app/class/3)
 goes considerably deeper on all three.
 
 ---

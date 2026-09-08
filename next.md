@@ -120,7 +120,7 @@ supplier's claims should be checked against.
 ### Show control and networking
 
 The natural next step, and the sibling module to this one:
-[Computer Systems and Networking for Theatre](https://github.com/deliseph/theatre-computer-systems).
+[Computer Systems and Networking for Theatre](https://theatre-computer-systems.vercel.app).
 
 If the part you enjoyed was Classes 11 to 14, the firmware rather than the soldering, then
 [Computer Science for Theatre](https://computer-science-theatre.vercel.app) is the one to take next: reading code you did not write,

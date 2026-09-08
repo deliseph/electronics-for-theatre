@@ -226,7 +226,7 @@ with both on it needs a deliberate decision rather than two sets of defaults.
 that does not. Putting a laptop's software updates on the same VLAN as your lighting is the most
 common self-inflicted wound in this part of the industry. Separate them physically, or by VLAN, and
 the sibling module on
-[computer systems and networking](https://github.com/deliseph/theatre-computer-systems) is four
+[computer systems and networking](https://theatre-computer-systems.vercel.app/class/3) is four
 hours on exactly this.
 
 ---
