@@ -174,7 +174,7 @@ The other two are for other rooms:
 | Course | Who is in it |
 |---|---|
 | [Computer Systems and Networking](https://github.com/deliseph/theatre-computer-systems) | Media Design and Technology, year 1. A different cohort, who never take this course |
-| [Show Networking and Control Systems](https://github.com/deliseph/show-netoworking-control-system) | An elective, open to anyone, assuming none of the others |
+| [Show Networking and Control Systems](https://show-networking-control-system.vercel.app) | An elective, open to anyone, assuming none of the others |
 | [showstack](https://showstack-inky.vercel.app/) | Not a course: the open index all four check their numbers and bilingual terms against |
 
 Where two of these reach the same object they reach it from different positions and ask different

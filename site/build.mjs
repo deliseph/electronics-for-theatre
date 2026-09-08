@@ -354,6 +354,7 @@ const NAV_GROUPS = [
     ['/glossary', 'Glossary', 'Bilingual term list'],
   ]],
   ['Going further', [
+    ['https://computer-science-theatre.vercel.app/alignment', 'The four courses', 'Who each is for, and which goes deepest on what'],
     ['/next', 'Where to go next', 'Courses, standards, books and kit'],
   ]],
 ];
@@ -383,7 +384,7 @@ const PROGRAMME = [
   { id: 'compsci', name: 'Computer Science for Theatre', href: 'https://computer-science-theatre.vercel.app/',
     who: 'Technical Direction, year 2 · core',
     what: 'The instructions themselves: code, AI, and what your program does when it is alone.' },
-  { id: 'shownet', name: 'Show Networking and Control Systems', href: 'https://github.com/deliseph/show-netoworking-control-system',
+  { id: 'shownet', name: 'Show Networking and Control Systems', href: 'https://show-networking-control-system.vercel.app',
     who: 'Elective · assumes none of the others',
     what: 'The agreements between two devices, protocol by protocol, against the standard text.' },
   { id: 'showstack', name: 'showstack', href: 'https://showstack-inky.vercel.app/',
